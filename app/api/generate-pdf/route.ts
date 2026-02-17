@@ -29,16 +29,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Load medical summary formatter prompt
-    const promptPath = path.join(process.cwd(), 'prompts', 'medical-summary-formatter.txt')
+    // Load telehealth prep prompt
+    const promptPath = path.join(process.cwd(), 'prompts', 'telehealth_prep_prompt.txt')
     let promptTemplate: string
 
     try {
       promptTemplate = fs.readFileSync(promptPath, 'utf-8')
     } catch (error) {
-      console.error('Error loading prompt template:', error)
+      console.error('Error loading telehealth prep template:', error)
       return NextResponse.json(
-        { error: 'Failed to load medical summary template' },
+        { error: 'Failed to load telehealth prep template' },
         { status: 500 }
       )
     }
@@ -54,16 +54,31 @@ export async function POST(request: NextRequest) {
 
     // Fill in the prompt template
     const filledPrompt = promptTemplate
-      .replace('[stack-explorer|side-effects|compounds]', analysisType)
+      .replace('[Patient Name/Anonymous]', patientData.name || 'Anonymous Patient')
       .replace('[Current Date]', analysisData.analysisDate)
-      .replace('[Generated ID]', analysisData.reportId)
-      // Add more replacements as needed
 
-    // Call Grok to format the medical summary
+    // Get user's health data for comprehensive report
+    const [profileResult, protocolResult, bloodworkResult, sideEffectsResult] = await Promise.all([
+      supabase.from('profiles').select('*').eq('id', user.id).single(),
+      supabase.from('enhanced_protocols').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).single(),
+      supabase.from('bloodwork_reports').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).single(),
+      supabase.from('side_effect_logs').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(5)
+    ])
+
+    const healthData = {
+      profile: profileResult.data || {},
+      protocol: protocolResult.data || {},
+      bloodwork: bloodworkResult.data || {},
+      sideEffects: sideEffectsResult.data || [],
+      analysisType,
+      analysisData: patientData.analysis || {}
+    }
+
+    // Call Grok to format the telehealth referral package
     const grokResult = await callGrok({
-      prompt: filledPrompt + '\n\nAnalysis Data:\n' + JSON.stringify(analysisData, null, 2),
+      prompt: filledPrompt + '\n\nComprehensive Health Data:\n' + JSON.stringify(healthData, null, 2),
       userId: user.id,
-      feature: 'pdf-generation'
+      feature: 'doctor-pdf'
     })
 
     if (!grokResult.success) {

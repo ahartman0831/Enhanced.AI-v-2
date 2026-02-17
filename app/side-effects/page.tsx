@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CompoundNutritionCard } from '@/components/CompoundNutritionCard'
 import { DoctorPdfButton } from '@/components/DoctorPdfButton'
+import { PersonalizedSuppStack } from '@/components/PersonalizedSuppStack'
 import {
   AlertTriangle,
   Plus,
@@ -606,6 +607,9 @@ export default function SideEffectsPage() {
                 <AlertDescription>{result.educationalNotes}</AlertDescription>
               </Alert>
             )}
+
+        {/* Personalized Supp Stack - Elite Feature */}
+        <PersonalizedSuppStack analysisType="side-effects" />
 
             {/* PDF Button */}
             <div className="flex justify-center">

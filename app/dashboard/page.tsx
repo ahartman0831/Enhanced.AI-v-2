@@ -1,11 +1,13 @@
+'use client'
+
 import Link from 'next/link'
-import { createSupabaseServerClient } from '@/lib/supabase'
-import { redirect } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { HealthRiskScoreBadge } from '@/components/HealthRiskScoreBadge'
+import { WeeklyWhatChangedCard } from '@/components/WeeklyWhatChangedCard'
+import { CommunityInsightsCard } from '@/components/CommunityInsightsCard'
 import {
-  Activity,
   TrendingUp,
   AlertTriangle,
   FileText,
@@ -16,25 +18,48 @@ import {
   Pill,
   Shield
 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
-export default async function DashboardPage() {
-  const supabase = createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+export default function DashboardPage() {
+  const [user, setUser] = useState<any>(null)
+
+  useEffect(() => {
+    const getUser = async () => {
+      const response = await fetch('/api/auth/user')
+      if (response.ok) {
+        const userData = await response.json()
+        setUser(userData)
+      }
+    }
+    getUser()
+  }, [])
 
   if (!user) {
-    redirect('/login')
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p>Loading dashboard...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">
-            Welcome back, {user.email?.split('@')[0]}
-          </h1>
-          <p className="text-muted-foreground">
-            Here's an overview of your health and nutrition analysis.
-          </p>
+    <TooltipProvider>
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-8">
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground mb-2">
+              Welcome back, {user.email?.split('@')[0]}
+            </h1>
+            <p className="text-muted-foreground">
+              Here's an overview of your health optimization analysis.
+            </p>
+          </div>
+          <HealthRiskScoreBadge />
         </div>
 
         {/* Disclaimer Banner */}
@@ -45,58 +70,9 @@ export default async function DashboardPage() {
           </AlertDescription>
         </Alert>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Health Score</CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">85%</div>
-              <p className="text-xs text-muted-foreground">
-                +2% from last month
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Compounds</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">12</div>
-              <p className="text-xs text-muted-foreground">
-                Currently monitored
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Risk Alerts</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">2</div>
-              <p className="text-xs text-muted-foreground">
-                Require attention
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Reports Generated</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">8</div>
-              <p className="text-xs text-muted-foreground">
-                This month
-              </p>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <WeeklyWhatChangedCard className="lg:col-span-2" />
+          <CommunityInsightsCard />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -200,6 +176,6 @@ export default async function DashboardPage() {
           </Card>
         </div>
       </div>
-    </div>
+    </TooltipProvider>
   )
 }

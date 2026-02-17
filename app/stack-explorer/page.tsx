@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { CompoundNutritionCard } from '@/components/CompoundNutritionCard'
 import { DoctorPdfButton } from '@/components/DoctorPdfButton'
+import { PersonalizedSuppStack } from '@/components/PersonalizedSuppStack'
 import {
   ChevronLeft,
   ChevronRight,
@@ -460,6 +461,9 @@ export default function StackExplorerPage() {
             <AlertDescription>{result.educationalNotes}</AlertDescription>
           </Alert>
         )}
+
+        {/* Personalized Supp Stack - Elite Feature */}
+        <PersonalizedSuppStack analysisType="stack-explorer" />
 
             {/* PDF Button */}
             <div className="flex justify-center">

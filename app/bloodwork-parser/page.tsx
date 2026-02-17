@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { DoctorPdfButton } from '@/components/DoctorPdfButton'
+import { BloodPanelUpsell } from '@/components/BloodPanelUpsell'
 import {
   FileText,
   Upload,
@@ -174,6 +175,11 @@ export default function BloodworkParserPage() {
             <strong>Educational tool only. Not medical advice. Consult your physician.</strong> Bloodwork analysis is for educational purposes only and should not be used as a substitute for professional medical advice, diagnosis, or treatment.
           </AlertDescription>
         </Alert>
+
+        {/* Elite Blood Panel Upsell */}
+        <div className="mb-8">
+          <BloodPanelUpsell />
+        </div>
 
         {!result ? (
           /* Input Form */
