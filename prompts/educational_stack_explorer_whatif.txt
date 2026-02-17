@@ -29,6 +29,7 @@ Regenerate the FULL JSON output. Same structure. Apply the what-if change to the
 5. Keep ALL other approaches unchanged (or minimally adjust if the change affects overall strategy).
 6. Update "nutrition_impact" top-level object if the tweak affects nutrition strategy.
 7. Update "commonly_discussed_combo_risks" if the tweak adds/removes compounds that change combo risks (e.g., adding Anadrol to Tren = add liver/cardio combo warning).
-8. Ensure "safety_notes" and "next_step" remain strong.
+8. Update "bloodwork_markers_to_monitor" if the tweak affects which markers communities typically monitor (e.g., adding hepatotoxic compound → add ALT/AST).
+9. Ensure "safety_notes" and "next_step" remain strong.
 
-Return ONLY valid JSON. Same structure as the main Stack Explorer output (include commonly_discussed_combo_risks).
+Return ONLY valid JSON. Same structure as the main Stack Explorer output (include commonly_discussed_combo_risks, bloodwork_markers_to_monitor).

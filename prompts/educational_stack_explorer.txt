@@ -83,6 +83,10 @@ Return ONLY valid JSON. Never output dosages, cycle lengths, or sourcing.
     "Communities often warn of [specific combo risk, e.g., compounded liver load from Anadrol + Tren]",
     "Another example: [e.g., cardiovascular strain from Tren + stimulants]"
   ],
+  "bloodwork_markers_to_monitor": [
+    { "marker": "HDL/LDL", "why": "Commonly discussed for lipid disruption in contest prep" },
+    { "marker": "ALT/AST", "why": "Liver enzymes often monitored when hepatotoxic compounds are discussed" }
+  ],
   "safety_notes": "Heavy emphasis on monitoring, bloodwork, and physician consultation. Individual variability. No protocol recommendations.",
   "next_step": "Discuss with physician"
 }
@@ -114,5 +118,11 @@ Return ONLY valid JSON. Never output dosages, cycle lengths, or sourcing.
 7. **Additions Consistency (CRITICAL)**: Every compound referenced in the approach "base" or discussed in benefits/risks MUST appear in the "additions" array. No compound should be mentioned without being listed in additions.
 
 8. **commonly_discussed_combo_risks (REQUIRED)**: Include 2–4 specific combo risks when multiple compounds are discussed. Examples: "Anadrol + Tren = compounded liver and cardiovascular load"; "Oral AAS stacking = additive hepatotoxicity"; "Tren + stimulants = cardiovascular strain". Tailor to the compounds in additions.
+
+9. **bloodwork_markers_to_monitor (REQUIRED)**: Include 3–6 markers that communities typically monitor for this goal. Frame as "communities typically monitor these" — never prescribe. Tailor to goal (e.g., Contest Prep → lipids, liver; TRT Optimization → testosterone, estradiol, hematocrit). Use user profile for tailoring:
+   - Age 40+ → add cardiovascular markers (lipids, blood pressure, hsCRP)
+   - Advanced/PED experience → add prolactin, estradiol, hematocrit when relevant
+   - Female → add androgenic markers (DHEA-S, SHBG) when relevant
+   Format: [{ "marker": "HDL/LDL", "why": "Commonly discussed for lipid disruption in contest prep" }]
 
 Always end with safety_notes and next_step emphasizing physician consultation.

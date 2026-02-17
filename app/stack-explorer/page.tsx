@@ -11,6 +11,12 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger
+} from '@/components/ui/accordion'
 import { CompoundNutritionCard } from '@/components/CompoundNutritionCard'
 import { DoctorPdfButton } from '@/components/DoctorPdfButton'
 import { PersonalizedSuppStack } from '@/components/PersonalizedSuppStack'
@@ -31,7 +37,8 @@ import {
   CheckCircle,
   Lightbulb,
   Sparkles,
-  Crown
+  Crown,
+  Droplets
 } from 'lucide-react'
 
 interface CommonApproachDiscussed {
@@ -84,6 +91,7 @@ interface StackAnalysisResult {
     amazon_affiliate_link?: string
   }>
   commonly_discussed_combo_risks?: string[]
+  bloodwork_markers_to_monitor?: Array<{ marker: string; why: string }>
   safety_notes?: string
   next_step?: string
   educationalNotes?: string
@@ -584,6 +592,38 @@ export default function StackExplorerPage() {
                   </li>
                 ))}
               </ul>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Bloodwork Markers to Check */}
+        {result.bloodwork_markers_to_monitor && result.bloodwork_markers_to_monitor.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Droplets className="h-5 w-5" />
+                Bloodwork Markers to Check
+              </CardTitle>
+              <CardDescription>
+                Communities typically monitor these markers for this goal. Educational only — discuss with physician.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Accordion type="single" collapsible className="w-full">
+                {result.bloodwork_markers_to_monitor.map((item, idx) => (
+                  <AccordionItem key={idx} value={`marker-${idx}`}>
+                    <AccordionTrigger className="text-left">
+                      {item.marker}
+                    </AccordionTrigger>
+                    <AccordionContent className="text-muted-foreground">
+                      {item.why}
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+              <p className="mt-4 text-xs text-muted-foreground italic">
+                Educational only — discuss with physician before ordering or interpreting any bloodwork.
+              </p>
             </CardContent>
           </Card>
         )}
