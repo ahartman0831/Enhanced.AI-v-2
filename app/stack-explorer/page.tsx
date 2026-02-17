@@ -81,6 +81,7 @@ interface StackAnalysisResult {
     affected_system: string
     amazon_affiliate_link?: string
   }>
+  commonly_discussed_combo_risks?: string[]
   safety_notes?: string
   next_step?: string
   educationalNotes?: string
@@ -91,9 +92,10 @@ const GOALS_OPTIONS = [
   'Lean Bulk',
   'Cut',
   'TRT Optimization',
+  'Strength Gains',
+  'Strength Density',
   'General Health Optimization',
   'Recovery Enhancement',
-  'Strength Gains',
   'Endurance Improvement',
   'Body Recomposition',
   'Other'
@@ -391,6 +393,9 @@ export default function StackExplorerPage() {
     const nutritionImpact = result.nutrition_impact ?? result.nutritionImpact
     const supports = result.commonly_discussed_supports ?? result.commonlyDiscussedSupports
     const approaches = result.common_approaches_discussed ?? result.commonApproaches
+    const comboRisks = result.commonly_discussed_combo_risks
+      ? (Array.isArray(result.commonly_discussed_combo_risks) ? result.commonly_discussed_combo_risks : [String(result.commonly_discussed_combo_risks)])
+      : []
 
     return (
       <div className="space-y-8">
@@ -536,6 +541,31 @@ export default function StackExplorerPage() {
             ))}
           </div>
         </div>
+
+        {/* Combination Risks */}
+        {comboRisks.length > 0 && (
+          <Card className="border-amber-200 dark:border-amber-800">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                <AlertTriangle className="h-5 w-5" />
+                Combination Risks
+              </CardTitle>
+              <CardDescription>
+                Communities often warn of these specific combo risks when multiple compounds are discussed
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2">
+                {comboRisks.map((risk, idx) => (
+                  <li key={idx} className="flex items-start gap-2 text-sm">
+                    <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                    <span className="text-muted-foreground">{risk}</span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Nutrition Impact */}
         {nutritionImpact && (

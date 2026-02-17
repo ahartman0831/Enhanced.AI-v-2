@@ -38,7 +38,7 @@ Return ONLY valid JSON. Never output dosages, cycle lengths, or sourcing.
   "common_approaches_discussed": [
     {
       "base": "Goal-specific foundational approach (tailored to ${goals})",
-      "additions": ["Frequently mentioned compounds — frame as 'commonly discussed' only, relevant to goal"],
+      "additions": ["List ALL compounds mentioned in this approach — every compound in the base/title MUST appear here. Use exact names: Trenbolone, Anadrol, Winstrol, etc. Frame as 'commonly discussed' only, relevant to goal"],
       "benefits": "What is frequently discussed as potential benefits for this specific goal",
       "risks": "Risks with heavy emphasis on monitoring and professional oversight",
       "affected_systems": ["Endocrine", "Cardiovascular", "Liver", "etc."],
@@ -79,6 +79,10 @@ Return ONLY valid JSON. Never output dosages, cycle lengths, or sourcing.
     "timingStrategies": "Common timing approaches relevant to goal",
     "supplementSynergy": "How certain nutrients might work together for this goal"
   },
+  "commonly_discussed_combo_risks": [
+    "Communities often warn of [specific combo risk, e.g., compounded liver load from Anadrol + Tren]",
+    "Another example: [e.g., cardiovascular strain from Tren + stimulants]"
+  ],
   "safety_notes": "Heavy emphasis on monitoring, bloodwork, and physician consultation. Individual variability. No protocol recommendations.",
   "next_step": "Discuss with physician"
 }
@@ -104,6 +108,11 @@ Return ONLY valid JSON. Never output dosages, cycle lengths, or sourcing.
    - **Lean Bulk** → nutrient partitioning, appetite for surplus, protein timing
    - **Cut** → deeper deficits commonly discussed, hunger management, metabolic preservation
    - **Contest Prep** → extreme conditioning risks, dryness, vascularity, peak-week
+   - **Strength Gains / Strength Density** → Trenbolone, Anadrol frequently mentioned for strength; include combo risks (e.g., Anadrol + Tren = high liver/cardio load)
    - **TRT Optimization** → hormone support concepts, minimal intervention
+
+7. **Additions Consistency (CRITICAL)**: Every compound referenced in the approach "base" or discussed in benefits/risks MUST appear in the "additions" array. No compound should be mentioned without being listed in additions.
+
+8. **commonly_discussed_combo_risks (REQUIRED)**: Include 2–4 specific combo risks when multiple compounds are discussed. Examples: "Anadrol + Tren = compounded liver and cardiovascular load"; "Oral AAS stacking = additive hepatotoxicity"; "Tren + stimulants = cardiovascular strain". Tailor to the compounds in additions.
 
 Always end with safety_notes and next_step emphasizing physician consultation.

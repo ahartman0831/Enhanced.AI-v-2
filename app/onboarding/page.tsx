@@ -30,9 +30,10 @@ const PRIMARY_GOAL_OPTIONS = [
   'Lean Bulk',
   'Cut',
   'TRT Optimization',
+  'Strength Gains',
+  'Strength Density',
   'General Health Optimization',
   'Recovery Enhancement',
-  'Strength Gains',
   'Endurance Improvement',
   'Body Recomposition',
   'Other'
