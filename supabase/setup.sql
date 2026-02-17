@@ -272,21 +272,27 @@ END;
 $$ language 'plpgsql';
 
 -- Create triggers for updating timestamps
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON profiles;
 CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_enhanced_protocols_updated_at ON enhanced_protocols;
 CREATE TRIGGER update_enhanced_protocols_updated_at BEFORE UPDATE ON enhanced_protocols
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_bloodwork_reports_updated_at ON bloodwork_reports;
 CREATE TRIGGER update_bloodwork_reports_updated_at BEFORE UPDATE ON bloodwork_reports
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_photo_reports_updated_at ON photo_reports;
 CREATE TRIGGER update_photo_reports_updated_at BEFORE UPDATE ON photo_reports
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_side_effect_logs_updated_at ON side_effect_logs;
 CREATE TRIGGER update_side_effect_logs_updated_at BEFORE UPDATE ON side_effect_logs
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_compounds_updated_at ON compounds;
 CREATE TRIGGER update_compounds_updated_at BEFORE UPDATE ON compounds
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
