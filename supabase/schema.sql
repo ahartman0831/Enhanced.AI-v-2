@@ -83,13 +83,34 @@ CREATE TABLE IF NOT EXISTS side_effect_logs (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Enable Row Level Security (RLS)
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE enhanced_protocols ENABLE ROW LEVEL SECURITY;
-ALTER TABLE bloodwork_reports ENABLE ROW LEVEL SECURITY;
-ALTER TABLE photo_reports ENABLE ROW LEVEL SECURITY;
-ALTER TABLE token_usage_log ENABLE ROW LEVEL SECURITY;
-ALTER TABLE side_effect_logs ENABLE ROW LEVEL SECURITY;
+-- Enable Row Level Security (RLS) - idempotent
+DO $$
+BEGIN
+    -- Enable RLS only if not already enabled
+    IF NOT EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname = 'profiles' AND n.nspname = 'public' AND c.relrowsecurity = false) THEN
+        ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname = 'enhanced_protocols' AND n.nspname = 'public' AND c.relrowsecurity = false) THEN
+        ALTER TABLE enhanced_protocols ENABLE ROW LEVEL SECURITY;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname = 'bloodwork_reports' AND n.nspname = 'public' AND c.relrowsecurity = false) THEN
+        ALTER TABLE bloodwork_reports ENABLE ROW LEVEL SECURITY;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname = 'photo_reports' AND n.nspname = 'public' AND c.relrowsecurity = false) THEN
+        ALTER TABLE photo_reports ENABLE ROW LEVEL SECURITY;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname = 'token_usage_log' AND n.nspname = 'public' AND c.relrowsecurity = false) THEN
+        ALTER TABLE token_usage_log ENABLE ROW LEVEL SECURITY;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname = 'side_effect_logs' AND n.nspname = 'public' AND c.relrowsecurity = false) THEN
+        ALTER TABLE side_effect_logs ENABLE ROW LEVEL SECURITY;
+    END IF;
+END $$;
 
 -- Create RLS policies for profiles
 DROP POLICY IF EXISTS "Users can view their own profile" ON profiles;
