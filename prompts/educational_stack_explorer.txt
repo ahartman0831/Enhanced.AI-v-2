@@ -36,9 +36,9 @@ Based on the user's goals, experience level, and risk tolerance, provide an educ
   "commonlyDiscussedSupports": [
     {
       "name": "Compound/Support Name",
-      "commonPurpose": "Brief description of why this is often discussed",
-      "affectedSystem": "Primary system this is commonly discussed for",
-      "communityNotes": "General community observations about this support"
+      "common_purpose": "Brief description of why this is often discussed",
+      "affected_system": "Primary system this is commonly discussed for",
+      "amazon_affiliate_link": "https://amazon.com/dp/[ASIN]?tag=enhancedai-20"
     }
   ]
 }

@@ -47,9 +47,9 @@ Based on the reported compounds, dosages, and side effects, provide an education
   "commonlyDiscussedSupports": [
     {
       "name": "Compound/Support Name",
-      "commonPurpose": "Brief description of why this is often discussed for side effect management",
-      "affectedSystem": "Primary system this support is commonly discussed for",
-      "communityNotes": "General community observations about this support"
+      "common_purpose": "Brief description of why this is often discussed for side effect management",
+      "affected_system": "Primary system this support is commonly discussed for",
+      "amazon_affiliate_link": "https://amazon.com/dp/[ASIN]?tag=enhancedai-20"
     }
   ]
 }

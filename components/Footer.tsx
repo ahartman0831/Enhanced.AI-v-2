@@ -19,7 +19,7 @@ export function Footer() {
               Privacy Policy
             </Link>
             <span className="text-muted-foreground">
-              We never share identifiable data. Aggregated trends are educational only.
+              We never share identifiable data. Aggregated trends are educational only. We may earn a commission from qualifying purchases via affiliate links.
             </span>
           </div>
         </div>

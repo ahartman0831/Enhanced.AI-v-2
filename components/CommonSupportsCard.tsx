@@ -9,9 +9,9 @@ import { generateAmazonAffiliateLink, getAffiliateDisclosure } from '@/lib/affil
 
 interface SupportItem {
   name: string
-  commonPurpose: string
-  affectedSystem: string
-  communityNotes?: string
+  common_purpose: string
+  affected_system: string
+  amazon_affiliate_link?: string
 }
 
 interface CommonSupportsCardProps {
@@ -130,7 +130,7 @@ export function CommonSupportsCard({
             <div key={index} className="border rounded-lg p-4 bg-white/50 dark:bg-black/20">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">{getSystemIcon(support.affectedSystem)}</span>
+                  <span className="text-2xl">{getSystemIcon(support.affected_system)}</span>
                   <div>
                     <h4 className="font-medium text-lg">{support.name}</h4>
                     <p className="text-sm text-muted-foreground">
@@ -138,8 +138,8 @@ export function CommonSupportsCard({
                     </p>
                   </div>
                 </div>
-                <Badge className={getPurposeColor(support.commonPurpose)}>
-                  {support.affectedSystem}
+                <Badge className={getPurposeColor(support.common_purpose)}>
+                  {support.affected_system}
                 </Badge>
               </div>
 
@@ -155,7 +155,7 @@ export function CommonSupportsCard({
                 </div>
                 <Button size="sm" variant="outline" asChild>
                   <a
-                    href={generateAmazonAffiliateLink(support.name)}
+                    href={support.amazon_affiliate_link || generateAmazonAffiliateLink(support.name)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1"

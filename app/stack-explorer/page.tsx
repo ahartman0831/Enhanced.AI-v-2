@@ -49,9 +49,9 @@ interface StackAnalysisResult {
   educationalNotes: string
   commonlyDiscussedSupports?: Array<{
     name: string
-    commonPurpose: string
-    affectedSystem: string
-    communityNotes?: string
+    common_purpose: string
+    affected_system: string
+    amazon_affiliate_link?: string
   }>
 }
 
