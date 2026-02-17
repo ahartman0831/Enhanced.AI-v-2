@@ -1,22 +1,16 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { PhotoUploader } from '@/components/PhotoUploader'
+import { PhotoMetaForm } from '@/components/PhotoMetaForm'
+import { AnalyzeButton } from '@/components/AnalyzeButton'
+import { VisionReportCard } from '@/components/VisionReportCard'
+import { ComparisonViewer } from '@/components/ComparisonViewer'
+import { TimelineTagger } from '@/components/TimelineTagger'
 import { DoctorPdfButton } from '@/components/DoctorPdfButton'
-import {
-  Camera,
-  Upload,
-  X,
-  AlertTriangle,
-  Loader2,
-  CheckCircle,
-  Image as ImageIcon
-} from 'lucide-react'
+import { AlertTriangle } from 'lucide-react'
 
 interface PhotoAnalysisResult {
   bodyComposition: {
@@ -162,103 +156,23 @@ export default function ProgressPhotosPage() {
         {!result ? (
           /* Photo Upload Form */
           <div className="space-y-8">
-            {/* Photo Upload Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Camera className="h-5 w-5" />
-                  Upload Progress Photos
-                </CardTitle>
-                <CardDescription>
-                  Upload three photos: front, side, and back views for comprehensive analysis
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {photoTypes.map(({ key, label, description }) => (
-                    <div key={key} className="space-y-4">
-                      <div className="text-center">
-                        <h3 className="font-semibold mb-1">{label}</h3>
-                        <p className="text-sm text-muted-foreground">{description}</p>
-                      </div>
+            {/* Photo Uploader Component */}
+            <PhotoUploader
+              photos={photos}
+              onPhotoChange={handlePhotoChange}
+            />
 
-                      {photos[key] ? (
-                        <div className="relative">
-                          <img
-                            src={photos[key]!.preview}
-                            alt={`${label} view`}
-                            className="w-full h-48 object-cover rounded-lg border"
-                          />
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            className="absolute top-2 right-2"
-                            onClick={() => removePhoto(key)}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                          <div className="absolute bottom-2 left-2 bg-green-500 text-white px-2 py-1 rounded text-xs">
-                            <CheckCircle className="h-3 w-3 inline mr-1" />
-                            Uploaded
-                          </div>
-                        </div>
-                      ) : (
-                        <div
-                          className="w-full h-48 border-2 border-dashed border-muted-foreground/25 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-primary transition-colors"
-                          onClick={() => handleFileSelect(key)}
-                        >
-                          <ImageIcon className="h-8 w-8 text-muted-foreground mb-2" />
-                          <p className="text-sm text-muted-foreground text-center">
-                            Click to upload<br />
-                            {label.toLowerCase()}
-                          </p>
-                        </div>
-                      )}
+            {/* Metadata Form Component */}
+            <PhotoMetaForm
+              metadata={metadata}
+              onMetadataChange={setMetadata}
+            />
 
-                      <input
-                        ref={fileInputs[key]}
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handleFileChange(key, e)}
-                        className="hidden"
-                      />
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleFileSelect(key)}
-                        className="w-full"
-                      >
-                        <Upload className="h-4 w-4 mr-2" />
-                        {photos[key] ? 'Replace' : 'Upload'} {label}
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Metadata Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Optional Metadata</CardTitle>
-                <CardDescription>
-                  Provide context for more personalized analysis (optional)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <Label htmlFor="metadata">Additional Information</Label>
-                  <Textarea
-                    id="metadata"
-                    placeholder="Example: Current weight, training experience, goals, etc."
-                    value={metadata}
-                    onChange={(e) => setMetadata(e.target.value)}
-                    rows={4}
-                  />
-                </div>
-              </CardContent>
-            </Card>
+            {/* Comparison Viewer (if previous photos exist) */}
+            <ComparisonViewer
+              currentPhotos={photos}
+              previousEntries={[]} // Would be fetched from API in real implementation
+            />
 
             {/* Error Display */}
             {error && (
@@ -268,102 +182,25 @@ export default function ProgressPhotosPage() {
               </Alert>
             )}
 
-            {/* Analyze Button */}
-            <div className="flex justify-center">
-              <Button
-                onClick={handleAnalyze}
-                disabled={isAnalyzing || !photos.front || !photos.side || !photos.back}
-                size="lg"
-              >
-                {isAnalyzing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Analyzing Photos...
-                  </>
-                ) : (
-                  'Analyze Progress Photos'
-                )}
-              </Button>
-            </div>
+            {/* Analyze Button Component */}
+            <AnalyzeButton
+              onAnalyze={handleAnalyze}
+              isAnalyzing={isAnalyzing}
+              photosCount={photoCount}
+              requiredPhotos={3}
+            />
           </div>
         ) : (
           /* Results Display */
           <div className="space-y-8">
-            {/* Analysis Results */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Educational Photo Analysis Results</CardTitle>
-                <CardDescription>
-                  General observations and educational insights from your progress photos
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Body Composition */}
-                {result.bodyComposition && (
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4">Body Composition Analysis</h3>
+            {/* Vision Report Card Component */}
+            <VisionReportCard result={result} />
 
-                    {result.bodyComposition.generalObservations && result.bodyComposition.generalObservations.length > 0 && (
-                      <div className="mb-4">
-                        <h4 className="font-medium mb-2">General Observations</h4>
-                        <ul className="space-y-1">
-                          {result.bodyComposition.generalObservations.map((obs, index) => (
-                            <li key={index} className="flex items-start gap-2 text-sm">
-                              <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                              {obs}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {result.bodyComposition.symmetryAssessment && (
-                      <div className="mb-4">
-                        <h4 className="font-medium mb-2">Symmetry Assessment</h4>
-                        <p className="text-sm text-muted-foreground">{result.bodyComposition.symmetryAssessment}</p>
-                      </div>
-                    )}
-
-                    {result.bodyComposition.improvementAreas && result.bodyComposition.improvementAreas.length > 0 && (
-                      <div className="mb-4">
-                        <h4 className="font-medium mb-2">Areas for Educational Focus</h4>
-                        <ul className="space-y-1">
-                          {result.bodyComposition.improvementAreas.map((area, index) => (
-                            <li key={index} className="flex items-start gap-2 text-sm">
-                              <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                              {area}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Monitoring Recommendations */}
-                {result.monitoringRecommendations && result.monitoringRecommendations.length > 0 && (
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4">Educational Monitoring Recommendations</h3>
-                    <ul className="space-y-2">
-                      {result.monitoringRecommendations.map((rec, index) => (
-                        <li key={index} className="flex items-start gap-2 text-sm">
-                          <CheckCircle className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
-                          {rec}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Educational Notes */}
-                {result.educationalNotes && (
-                  <Alert>
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>{result.educationalNotes}</AlertDescription>
-                  </Alert>
-                )}
-              </CardContent>
-            </Card>
+            {/* Timeline Tagger Component */}
+            <TimelineTagger
+              onSaveEntry={handleSaveTimelineEntry}
+              existingEntries={[]} // Would be fetched from API in real implementation
+            />
 
             {/* PDF Button */}
             <div className="flex justify-center">
