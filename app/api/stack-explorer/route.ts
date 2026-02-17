@@ -7,7 +7,7 @@ import path from 'path'
 export async function POST(request: NextRequest) {
   try {
     // Authenticate user
-    const supabase = createSupabaseServerClient()
+    const supabase = await createSupabaseServerClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
@@ -52,12 +52,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Save to enhanced_protocols table
+    const nutritionImpact = grokResult.data?.nutrition_impact ?? grokResult.data?.nutritionImpact
     const { data: protocolData, error: dbError } = await supabase
       .from('enhanced_protocols')
       .insert({
         user_id: user.id,
         stack_json: grokResult.data,
-        nutrition_impact: grokResult.data?.nutritionImpact || grokResult.data?.nutrition_impact
+        nutrition_impact: nutritionImpact
       })
       .select()
       .single()

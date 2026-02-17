@@ -12,6 +12,7 @@ interface SupportItem {
   common_purpose: string
   affected_system: string
   amazon_affiliate_link?: string
+  communityNotes?: string
 }
 
 interface CommonSupportsCardProps {
@@ -27,31 +28,43 @@ export function CommonSupportsCard({
   className,
   isElite = false
 }: CommonSupportsCardProps) {
-  // For Free/Pro users, show a general curated list
+  // For Free/Pro users, show a general curated list (Elite gets personalized from API)
   const generalSupports: SupportItem[] = [
     {
       name: "Fish Oil",
-      commonPurpose: "cardiovascular and joint support",
-      affectedSystem: "Cardiovascular",
+      common_purpose: "cardiovascular and joint support",
+      affected_system: "Cardiovascular",
       communityNotes: "Often discussed for maintaining healthy lipid profiles and joint comfort"
     },
     {
+      name: "NAC",
+      common_purpose: "hepatic and antioxidant support",
+      affected_system: "Liver",
+      communityNotes: "Frequently mentioned for liver support and glutathione production"
+    },
+    {
+      name: "TUDCA",
+      common_purpose: "hepatic support",
+      affected_system: "Liver",
+      communityNotes: "Commonly discussed for bile acid and liver health support"
+    },
+    {
+      name: "CoQ10",
+      common_purpose: "cardiovascular and mitochondrial support",
+      affected_system: "Cardiovascular",
+      communityNotes: "Often mentioned for heart health and cellular energy"
+    },
+    {
       name: "Vitamin D3",
-      commonPurpose: "hormonal and immune support",
-      affectedSystem: "Endocrine",
+      common_purpose: "hormonal and immune support",
+      affected_system: "Endocrine",
       communityNotes: "Frequently mentioned for maintaining optimal vitamin D levels"
     },
     {
       name: "Magnesium",
-      commonPurpose: "muscle recovery and sleep support",
-      affectedSystem: "Neurological",
+      common_purpose: "muscle recovery and sleep support",
+      affected_system: "Neurological",
       communityNotes: "Commonly discussed for muscle cramps and sleep quality"
-    },
-    {
-      name: "Zinc",
-      commonPurpose: "hormonal optimization support",
-      affectedSystem: "Endocrine",
-      communityNotes: "Often mentioned alongside hormonal compounds for optimization"
     }
   ]
 
@@ -134,7 +147,7 @@ export function CommonSupportsCard({
                   <div>
                     <h4 className="font-medium text-lg">{support.name}</h4>
                     <p className="text-sm text-muted-foreground">
-                      {support.commonPurpose}
+                      {support.common_purpose}
                     </p>
                   </div>
                 </div>

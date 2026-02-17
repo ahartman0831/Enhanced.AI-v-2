@@ -28,8 +28,20 @@ import {
   Lightbulb
 } from 'lucide-react'
 
+interface CommonApproachDiscussed {
+  base: string
+  additions: string[]
+  benefits: string
+  risks: string
+  affected_systems: string[]
+  monitoring: string[]
+  nutrition_impact: string
+}
+
 interface StackAnalysisResult {
-  commonApproaches: Array<{
+  disclaimer?: string
+  common_approaches_discussed?: CommonApproachDiscussed[]
+  commonApproaches?: Array<{
     name: string
     description: string
     typicalCompounds: string[]
@@ -38,21 +50,36 @@ interface StackAnalysisResult {
     experienceFit: string
     riskLevel: string
   }>
-  nutritionImpact: {
+  nutrition_impact?: {
     proteinConsiderations: string
     calorieManagement: string
     micronutrientFocus: string
     timingStrategies: string
     supplementSynergy: string
   }
-  monitoringRecommendations: string[]
-  educationalNotes: string
+  nutritionImpact?: {
+    proteinConsiderations: string
+    calorieManagement: string
+    micronutrientFocus: string
+    timingStrategies: string
+    supplementSynergy: string
+  }
+  monitoringRecommendations?: string[]
+  commonly_discussed_supports?: Array<{
+    name: string
+    common_purpose: string
+    affected_system: string
+    amazon_affiliate_link?: string
+  }>
   commonlyDiscussedSupports?: Array<{
     name: string
     common_purpose: string
     affected_system: string
     amazon_affiliate_link?: string
   }>
+  safety_notes?: string
+  next_step?: string
+  educationalNotes?: string
 }
 
 const GOALS_OPTIONS = [
@@ -314,13 +341,21 @@ export default function StackExplorerPage() {
   const renderResults = () => {
     if (!result) return null
 
+    const nutritionImpact = result.nutrition_impact ?? result.nutritionImpact
+    const supports = result.commonly_discussed_supports ?? result.commonlyDiscussedSupports
+    const approaches = result.common_approaches_discussed ?? result.commonApproaches
+
     return (
       <div className="space-y-8">
         {/* Disclaimer */}
         <Alert className="border-destructive/50">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription className="text-sm">
-            <strong>Educational Analysis Only:</strong> This is for educational purposes and provides general information about common approaches discussed in health optimization communities. This is not medical advice, personalized recommendations, or treatment plans. Always consult qualified healthcare professionals before making any changes to your health regimen.
+            {result.disclaimer ?? (
+              <>
+                <strong>Educational Analysis Only:</strong> This is for educational purposes and provides general information about common approaches discussed in health optimization communities. This is not medical advice, personalized recommendations, or treatment plans. Always consult qualified healthcare professionals before making any changes to your health regimen.
+              </>
+            )}
           </AlertDescription>
         </Alert>
 
@@ -328,7 +363,67 @@ export default function StackExplorerPage() {
         <div>
           <h2 className="text-2xl font-bold mb-6">Common Educational Approaches</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {result.commonApproaches?.map((approach, index) => (
+            {result.common_approaches_discussed?.map((approach, index) => (
+              <Card key={index}>
+                <CardHeader>
+                  <CardTitle className="text-lg">Approach {index + 1}</CardTitle>
+                  <CardDescription>{approach.base}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {approach.additions && approach.additions.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-sm mb-2">Frequently Mentioned:</h4>
+                      <div className="flex flex-wrap gap-1">
+                        {approach.additions.map((item, idx) => (
+                          <Badge key={idx} variant="outline">{item}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <h4 className="font-semibold text-sm mb-2">Commonly Discussed Benefits:</h4>
+                    <p className="text-sm text-muted-foreground">{approach.benefits}</p>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold text-sm mb-2 text-destructive">Risks & Monitoring Focus:</h4>
+                    <p className="text-sm text-muted-foreground">{approach.risks}</p>
+                  </div>
+
+                  {approach.affected_systems && approach.affected_systems.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-sm mb-2">Affected Systems:</h4>
+                      <div className="flex flex-wrap gap-1">
+                        {approach.affected_systems.map((sys, idx) => (
+                          <Badge key={idx} variant="secondary">{sys}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {approach.monitoring && approach.monitoring.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold text-sm mb-2">Monitoring:</h4>
+                      <ul className="text-sm text-muted-foreground space-y-1">
+                        {approach.monitoring.map((m, idx) => (
+                          <li key={idx} className="flex items-start">
+                            <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
+                            {m}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <div>
+                    <h4 className="font-semibold text-sm mb-2">Nutrition Impact:</h4>
+                    <p className="text-sm text-muted-foreground">{approach.nutrition_impact}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            {!result.common_approaches_discussed && result.commonApproaches?.map((approach, index) => (
               <Card key={index}>
                 <CardHeader>
                   <CardTitle className="text-lg">{approach.name}</CardTitle>
@@ -380,9 +475,9 @@ export default function StackExplorerPage() {
         </div>
 
         {/* Nutrition Impact */}
-        {result.nutritionImpact && (
+        {nutritionImpact && (
           <div>
-            <h2 className="text-2xl font-bold mb-6">Nutrition Impact Analysis</h2>
+            <h2 className="text-2xl font-bold mb-6">Compound Nutrition Impact</h2>
             <CompoundNutritionCard compound={{
               name: 'Nutrition Strategy Overview',
               description: 'Educational overview of nutritional considerations',
@@ -395,41 +490,41 @@ export default function StackExplorerPage() {
             <Card className="mt-4">
               <CardContent className="pt-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {result.nutritionImpact.proteinConsiderations && (
+                  {nutritionImpact.proteinConsiderations && (
                     <div>
                       <h4 className="font-semibold mb-2 flex items-center gap-2">
                         <Lightbulb className="h-4 w-4" />
                         Protein Considerations
                       </h4>
                       <p className="text-sm text-muted-foreground">
-                        {result.nutritionImpact.proteinConsiderations}
+                        {nutritionImpact.proteinConsiderations}
                       </p>
                     </div>
                   )}
 
-                  {result.nutritionImpact.calorieManagement && (
+                  {nutritionImpact.calorieManagement && (
                     <div>
                       <h4 className="font-semibold mb-2">Calorie Management</h4>
                       <p className="text-sm text-muted-foreground">
-                        {result.nutritionImpact.calorieManagement}
+                        {nutritionImpact.calorieManagement}
                       </p>
                     </div>
                   )}
 
-                  {result.nutritionImpact.micronutrientFocus && (
+                  {nutritionImpact.micronutrientFocus && (
                     <div>
                       <h4 className="font-semibold mb-2">Micronutrient Focus</h4>
                       <p className="text-sm text-muted-foreground">
-                        {result.nutritionImpact.micronutrientFocus}
+                        {nutritionImpact.micronutrientFocus}
                       </p>
                     </div>
                   )}
 
-                  {result.nutritionImpact.timingStrategies && (
+                  {nutritionImpact.timingStrategies && (
                     <div>
                       <h4 className="font-semibold mb-2">Timing Strategies</h4>
                       <p className="text-sm text-muted-foreground">
-                        {result.nutritionImpact.timingStrategies}
+                        {nutritionImpact.timingStrategies}
                       </p>
                     </div>
                   )}
@@ -461,8 +556,21 @@ export default function StackExplorerPage() {
           </Card>
         )}
 
-        {/* Educational Notes */}
-        {result.educationalNotes && (
+        {/* Safety Notes & Next Step */}
+        {(result.safety_notes || result.next_step) && (
+          <Alert>
+            <Lightbulb className="h-4 w-4" />
+            <AlertDescription>
+              {result.safety_notes && <p className="mb-2">{result.safety_notes}</p>}
+              {result.next_step && (
+                <p className="font-semibold">{result.next_step}</p>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Educational Notes (legacy) */}
+        {result.educationalNotes && !result.safety_notes && (
           <Alert>
             <Lightbulb className="h-4 w-4" />
             <AlertDescription>{result.educationalNotes}</AlertDescription>
@@ -473,9 +581,9 @@ export default function StackExplorerPage() {
         <PersonalizedSuppStack analysisType="stack-explorer" />
 
         {/* Commonly Discussed Supports */}
-        {result.commonlyDiscussedSupports && result.commonlyDiscussedSupports.length > 0 && (
+        {supports && supports.length > 0 && (
           <CommonSupportsCard
-            supports={result.commonlyDiscussedSupports}
+            supports={supports}
             analysisType="stack-explorer"
             isElite={false} // TODO: Implement tier checking
           />
