@@ -63,7 +63,7 @@ export function anonymizeUserData(userData: any): any {
  * This should be run as a cron job or scheduled function
  */
 export async function aggregateTrends(): Promise<void> {
-  const supabase = createSupabaseServerClient()
+  const supabase = await createSupabaseServerClient()
 
   try {
     // Get all users who have consented to anonymized insights
@@ -101,16 +101,24 @@ export async function aggregateTrends(): Promise<void> {
         continue // Skip if contributed in last 7 days
       }
 
-      // Gather user's anonymized health data
-      const [profileResult, protocolsResult, bloodworkResult, sideEffectsResult] = await Promise.all([
+      // Gather user's anonymized health data (include onboarding for age/sex/experience/goal buckets)
+      const [profileResult, onboardingResult, protocolsResult, bloodworkResult, sideEffectsResult] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', userId).single(),
+        supabase.from('user_onboarding_profiles').select('age, sex, ped_experience_level, primary_goal').eq('id', userId).single(),
         supabase.from('enhanced_protocols').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).single(),
         supabase.from('bloodwork_reports').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).single(),
         supabase.from('side_effect_logs').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(5)
       ])
 
+      const profile = profileResult.data || {}
+      const onboarding = onboardingResult.data || {}
+      const ageBucket = onboarding.age != null
+        ? onboarding.age >= 40 ? '40_plus' : onboarding.age >= 30 ? '30_39' : '18_29'
+        : null
+
       const contributionData = {
-        profile: anonymizeUserData(profileResult.data || {}),
+        profile: anonymizeUserData({ ...profile, ...onboarding, experience_level: onboarding.ped_experience_level || profile.experience_level }),
+        onboarding_buckets: ageBucket ? { age_bucket: ageBucket, sex: onboarding.sex, experience: onboarding.ped_experience_level, goal: onboarding.primary_goal } : null,
         protocol: anonymizeUserData(protocolsResult.data || {}),
         bloodwork: anonymizeUserData(bloodworkResult.data || {}),
         side_effects: anonymizeUserData(sideEffectsResult.data || []),
@@ -138,7 +146,7 @@ export async function aggregateTrends(): Promise<void> {
  * Calculate aggregated trends from anonymized contributions
  */
 async function calculateAggregatedTrends(): Promise<void> {
-  const supabase = createSupabaseServerClient()
+  const supabase = await createSupabaseServerClient()
 
   // Get recent contributions (last 90 days)
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
@@ -158,45 +166,62 @@ async function calculateAggregatedTrends(): Promise<void> {
 
   // Bloodwork marker averages by experience level
   const bloodworkByExperience: { [key: string]: any[] } = {}
+  const bloodworkByAgeBucket: { [key: string]: any[] } = {}
+  const bloodworkByGoal: { [key: string]: any[] } = {}
   contributions.forEach(contrib => {
     const data = contrib.contribution_json
-    if (data.bloodwork && data.profile?.experience_level) {
-      const exp = data.profile.experience_level
+    const exp = data.profile?.ped_experience_level || data.profile?.experience_level
+    if (data.bloodwork && exp) {
       if (!bloodworkByExperience[exp]) bloodworkByExperience[exp] = []
       bloodworkByExperience[exp].push(data.bloodwork)
     }
+    const ageBucket = data.onboarding_buckets?.age_bucket
+    if (data.bloodwork && ageBucket) {
+      if (!bloodworkByAgeBucket[ageBucket]) bloodworkByAgeBucket[ageBucket] = []
+      bloodworkByAgeBucket[ageBucket].push(data.bloodwork)
+    }
+    const goal = data.onboarding_buckets?.goal
+    if (data.bloodwork && goal) {
+      const goalKey = goal.toLowerCase().replace(/\s+/g, '_')
+      if (!bloodworkByGoal[goalKey]) bloodworkByGoal[goalKey] = []
+      bloodworkByGoal[goalKey].push(data.bloodwork)
+    }
   })
 
-  // Calculate average changes for common markers
-  Object.entries(bloodworkByExperience).forEach(([experience, bloodworks]) => {
-    if (bloodworks.length >= 10) {
-      const markerAverages: { [key: string]: number } = {}
-
-      bloodworks.forEach(bw => {
-        if (bw.marker_ranges) {
-          Object.entries(bw.marker_ranges).forEach(([marker, range]: [string, any]) => {
-            // Extract approximate value from range (take midpoint)
-            const [start] = range.split('-').map(Number)
-            const approxValue = start + 5
-
-            if (!markerAverages[marker]) markerAverages[marker] = 0
-            markerAverages[marker] += approxValue
-          })
-        }
-      })
-
-      Object.entries(markerAverages).forEach(([marker, total]) => {
-        const average = total / bloodworks.length
-        trends.push({
-          category: 'bloodwork',
-          subgroup: `${experience}_experience`,
-          metric: `${marker}_average_range`,
-          value: { average: Math.round(average), unit: 'approximate' },
-          sample_size: bloodworks.length,
-          period: 'last_90_days'
+  const addBloodworkTrends = (bloodworks: any[], subgroup: string, minSize: number) => {
+    if (bloodworks.length < minSize) return
+    const markerAverages: { [key: string]: number } = {}
+    bloodworks.forEach(bw => {
+      if (bw.marker_ranges) {
+        Object.entries(bw.marker_ranges).forEach(([marker, range]: [string, any]) => {
+          const [start] = String(range).split('-').map(Number)
+          const approxValue = start + 5
+          if (!markerAverages[marker]) markerAverages[marker] = 0
+          markerAverages[marker] += approxValue
         })
+      }
+    })
+    Object.entries(markerAverages).forEach(([marker, total]) => {
+      const average = total / bloodworks.length
+      trends.push({
+        category: 'bloodwork',
+        subgroup,
+        metric: `${marker}_average_range`,
+        value: { average: Math.round(average), unit: 'approximate' },
+        sample_size: bloodworks.length,
+        period: 'last_90_days'
       })
-    }
+    })
+  }
+
+  Object.entries(bloodworkByExperience).forEach(([experience, bloodworks]) => {
+    addBloodworkTrends(bloodworks, `${experience}_experience`, 10)
+  })
+  Object.entries(bloodworkByAgeBucket).forEach(([ageBucket, bloodworks]) => {
+    addBloodworkTrends(bloodworks, `age_${ageBucket}`, 5)
+  })
+  Object.entries(bloodworkByGoal).forEach(([goal, bloodworks]) => {
+    addBloodworkTrends(bloodworks, `goal_${goal}`, 5)
   })
 
   // Protocol duration trends

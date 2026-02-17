@@ -14,6 +14,12 @@ Experience: ${experience}
 Risk tolerance: ${riskTolerance}
 Bloodwork Summary: ${bloodwork}
 
+**Onboarding Profile (use for tailoring):** ${userProfile}
+- Age 40+ → emphasize cardiovascular monitoring, lipid panels, blood pressure
+- Female → emphasize androgenic risks (virilization, voice, hair), lower dose sensitivity
+- Male → standard androgenic considerations
+- PED experience none/beginner → conservative compounds, stronger disclaimers
+
 ## Goal-Tailoring Requirement (CRITICAL)
 Every field must reflect the user's stated goal. Do NOT give generic advice. Adapt:
 - **common_approaches_discussed**: Base, additions, benefits, risks, and nutrition_impact must be goal-specific.

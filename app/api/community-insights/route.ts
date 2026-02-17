@@ -3,29 +3,47 @@ import { createSupabaseServerClient } from '@/lib/supabase-server'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createSupabaseServerClient()
+    const supabase = await createSupabaseServerClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get user's profile to determine relevant trends
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('experience_level')
+    // Get user's onboarding profile for tailored insights
+    const { data: onboarding } = await supabase
+      .from('user_onboarding_profiles')
+      .select('age, sex, ped_experience_level, primary_goal')
       .eq('id', user.id)
       .single()
 
-    const experienceLevel = profileData?.experience_level || 'intermediate'
+    const experienceLevel = onboarding?.ped_experience_level || 'intermediate'
+    const ageBucket = onboarding?.age != null
+      ? onboarding.age >= 40 ? 'age_40_plus' : onboarding.age >= 30 ? 'age_30_39' : 'age_18_29'
+      : null
+    const goalKey = onboarding?.primary_goal
+      ? onboarding.primary_goal.toLowerCase().replace(/\s+/g, '_')
+      : null
+
+    // Build subgroup filter: match user's age, experience, goal
+    const subgroups = [
+      `${experienceLevel}_experience`,
+      ...(ageBucket ? [ageBucket] : []),
+      ...(goalKey ? [`goal_${goalKey}`] : []),
+      null
+    ].filter(Boolean)
+
+    const orFilter = subgroups
+      .map(s => s === null ? 'subgroup.is.null' : `subgroup.eq.${s}`)
+      .join(',')
 
     // Get anonymized trends from the database
     const { data: trends, error } = await supabase
       .from('anonymized_trends')
       .select('*')
-      .or(`subgroup.is.null,subgroup.eq.${experienceLevel}_experience`)
+      .or(orFilter)
       .order('calculated_at', { ascending: false })
-      .limit(10)
+      .limit(15)
 
     if (error) {
       console.error('Error fetching anonymized trends:', error)
@@ -48,34 +66,47 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Format trends into insights
-    const insights = trends.slice(0, 3).map(trend => {
+    // Format trends into insights (tailored to user's age/experience/goal)
+    const getSubgroupLabel = (subgroup: string | null) => {
+      if (!subgroup) return 'general users'
+      if (subgroup.startsWith('age_')) return `users your age (${subgroup.replace('age_', '').replace('_', '-')})`
+      if (subgroup.startsWith('goal_')) return `users on ${subgroup.replace('goal_', '').replace(/_/g, ' ')}`
+      if (subgroup.endsWith('_experience')) return `users with ${subgroup.replace('_experience', '')} experience`
+      return subgroup
+    }
+
+    const insights = trends.slice(0, 5).map(trend => {
       let insight = ''
       let educational_note = ''
+      const subgroupLabel = getSubgroupLabel(trend.subgroup)
+      const metricName = trend.metric.replace('_average_range', '').replace(/_/g, ' ')
 
       switch (trend.category) {
         case 'bloodwork':
-          if (trend.metric.includes('testosterone')) {
-            insight = `Users with similar experience averaged ${trend.value.average} in ${trend.metric.replace('_average_range', '').replace(/_/g, ' ')} ranges`
+          if (trend.metric.includes('hdl') || trend.metric.includes('cholesterol')) {
+            insight = `${subgroupLabel.charAt(0).toUpperCase() + subgroupLabel.slice(1)} report average HDL of ${trend.value.average}`
+            educational_note = 'Individual lipid responses vary. Discuss with your physician.'
+          } else if (trend.metric.includes('testosterone')) {
+            insight = `${subgroupLabel.charAt(0).toUpperCase() + subgroupLabel.slice(1)} averaged ${trend.value.average} in ${metricName} ranges`
             educational_note = 'Individual responses vary significantly from population averages.'
           } else {
-            insight = `Community data shows average ${trend.metric.replace(/_/g, ' ')} of ${trend.value.average} for ${trend.subgroup || 'general users'}`
+            insight = `Community data: ${metricName} average ${trend.value.average} for ${subgroupLabel}`
             educational_note = 'Population averages provide educational context, not predictions.'
           }
           break
 
         case 'protocols':
           if (trend.metric.includes('duration')) {
-            insight = `Users typically maintain protocols for an average of ${trend.value.average} days`
+            insight = `${subgroupLabel.charAt(0).toUpperCase() + subgroupLabel.slice(1)} typically maintain protocols ~${trend.value.average} days`
             educational_note = 'Protocol duration varies based on individual goals and responses.'
           } else {
-            insight = `Community trends show ${trend.value.average} average ${trend.metric.replace(/_/g, ' ')}`
+            insight = `Community trends: ${trend.value.average} average ${trend.metric.replace(/_/g, ' ')}`
             educational_note = 'Educational insights based on anonymized user experiences.'
           }
           break
 
         default:
-          insight = `Community trend: ${trend.category} - ${trend.metric} (${trend.value.average})`
+          insight = `Community trend: ${trend.category} - ${metricName} (${trend.value.average})`
           educational_note = 'Anonymized data helps improve educational insights.'
       }
 

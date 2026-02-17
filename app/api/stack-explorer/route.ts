@@ -30,11 +30,24 @@ export async function POST(request: NextRequest) {
 
     const isWhatIf = compoundTweak && typeof compoundTweak === 'string' && previousResult
 
+    // Fetch onboarding profile for tailoring
+    let userProfile = ''
+    const { data: onboarding } = await supabase
+      .from('user_onboarding_profiles')
+      .select('age, sex, ped_experience_level, primary_goal')
+      .eq('id', user.id)
+      .single()
+
+    if (onboarding) {
+      userProfile = `Age: ${onboarding.age}, Sex: ${onboarding.sex}, PED experience: ${onboarding.ped_experience_level}, Primary goal: ${onboarding.primary_goal}`
+    }
+
     const variables: Record<string, string> = {
       goals: String(goals),
       experience: String(experience),
       riskTolerance: String(riskTolerance),
-      bloodwork: bloodwork || 'No bloodwork summary provided'
+      bloodwork: bloodwork || 'No bloodwork summary provided',
+      userProfile: userProfile || 'Not provided'
     }
 
     let promptName = 'educational_stack_explorer'

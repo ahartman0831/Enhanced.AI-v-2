@@ -1,22 +1,36 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { CommunityInsightsCard } from '@/components/CommunityInsightsCard'
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
     const getUser = async () => {
-      const response = await fetch('/api/auth/user')
-      if (response.ok) {
-        const userData = await response.json()
-        setUser(userData)
+      try {
+        const response = await fetch('/api/auth/user')
+        if (response.ok) {
+          const userData = await response.json()
+          setUser(userData)
+        } else if (response.status === 401) {
+          router.replace('/login?redirectTo=/dashboard')
+          return
+        }
+      } catch {
+        router.replace('/login?redirectTo=/dashboard')
+        return
+      } finally {
+        setLoading(false)
       }
     }
     getUser()
-  }, [])
+  }, [router])
 
-  if (!user) {
+  if (loading || !user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -39,11 +53,10 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <div className="text-center py-12">
-          <p className="text-lg">Dashboard loading...</p>
+        <div className="grid gap-6 md:grid-cols-2">
+          <CommunityInsightsCard className="md:col-span-2" />
         </div>
-
       </div>
-      </div>
+    </div>
   )
 }
