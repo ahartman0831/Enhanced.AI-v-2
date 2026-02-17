@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
-import { createSupabaseBrowserClient } from '@/lib/supabase-client'
+import { useState, useEffect, useMemo, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CompoundCard } from '@/components/CompoundCard'
@@ -19,44 +19,45 @@ interface Compound {
   nutrition_impact_summary: string | null
 }
 
-export default function CompoundsPage() {
+function CompoundsContent() {
+  const searchParams = useSearchParams()
   const [compounds, setCompounds] = useState<Compound[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Search and filter state
-  const [searchTerm, setSearchTerm] = useState('')
+  // Search and filter state — init from ?compound= for deep links
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get('compound') || '')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [riskMin, setRiskMin] = useState(1)
   const [riskMax, setRiskMax] = useState(10)
 
-  const supabase = createSupabaseBrowserClient()
-
-  // Fetch compounds on component mount
+  // Fetch compounds via our API (server fetches from Supabase - shows as /api/compounds in Network tab)
   useEffect(() => {
-    async function fetchCompounds() {
-      try {
-        setLoading(true)
-        const { data, error } = await supabase
-          .from('compounds')
-          .select('*')
-          .order('name')
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000)
 
-        if (error) {
-          throw error
+    fetch('/api/compounds', { signal: controller.signal })
+      .then(async (res) => {
+        clearTimeout(timeoutId)
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error(err.error || `HTTP ${res.status}`)
         }
+        return res.json()
+      })
+      .then((data) => setCompounds(Array.isArray(data) ? data : []))
+      .catch((err) => {
+        clearTimeout(timeoutId)
+        setError(err.name === 'AbortError' ? 'Request timed out' : err.message || 'Failed to load compounds')
+      })
+      .finally(() => setLoading(false))
+  }, [])
 
-        setCompounds(data || [])
-      } catch (err) {
-        console.error('Error fetching compounds:', err)
-        setError('Failed to load compound database. Please try again later.')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchCompounds()
-  }, [supabase])
+  // Sync searchTerm from URL when navigating with ?compound=
+  useEffect(() => {
+    const compound = searchParams.get('compound')
+    if (compound) setSearchTerm(compound)
+  }, [searchParams])
 
   // Get unique categories for filter dropdown
   const categories = useMemo(() => {
@@ -210,5 +211,17 @@ export default function CompoundsPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function CompoundsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    }>
+      <CompoundsContent />
+    </Suspense>
   )
 }

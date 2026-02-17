@@ -17,6 +17,7 @@ import { PersonalizedSuppStack } from '@/components/PersonalizedSuppStack'
 import { CommonSupportsCard } from '@/components/CommonSupportsCard'
 import { FrequentlyMentionedCompounds } from '@/components/FrequentlyMentionedCompounds'
 import { WhatIfCompoundDialog } from '@/components/WhatIfCompoundDialog'
+import { PersonalizedMonitoringPlan } from '@/components/PersonalizedMonitoringPlan'
 import { SystemIcon, getMonitoringIcon } from '@/lib/system-icons'
 import {
   ChevronLeft,
@@ -29,7 +30,8 @@ import {
   Loader2,
   CheckCircle,
   Lightbulb,
-  Sparkles
+  Sparkles,
+  Crown
 } from 'lucide-react'
 
 interface CommonApproachDiscussed {
@@ -130,6 +132,9 @@ export default function StackExplorerPage() {
   const [whatIfOpen, setWhatIfOpen] = useState(false)
   const [whatIfApproachIndex, setWhatIfApproachIndex] = useState(0)
   const [whatIfCompoundNames, setWhatIfCompoundNames] = useState<string[]>([])
+
+  const isElite = false // TODO: Implement tier checking from profile/subscription
+  const [showEliteUpsell, setShowEliteUpsell] = useState(false)
 
   const totalSteps = 4
 
@@ -399,6 +404,17 @@ export default function StackExplorerPage() {
 
     return (
       <div className="space-y-8">
+        {/* Elite Upsell for What If */}
+        {showEliteUpsell && (
+          <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
+            <Crown className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Elite Feature:</strong> Upgrade to Elite to unlock the What If Simulator — tweak one compound and regenerate risks, combos, and nutrition impact.
+              <Button variant="link" className="p-0 h-auto ml-2" onClick={() => setShowEliteUpsell(false)}>Dismiss</Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Disclaimer */}
         <Alert className="border-destructive/50">
           <AlertTriangle className="h-4 w-4" />
@@ -431,13 +447,18 @@ export default function StackExplorerPage() {
                           size="sm"
                           className="shrink-0"
                           onClick={() => {
-                            setWhatIfCompoundNames(compoundNames)
-                            setWhatIfApproachIndex(index)
-                            setWhatIfOpen(true)
+                            if (isElite) {
+                              setWhatIfCompoundNames(compoundNames)
+                              setWhatIfApproachIndex(index)
+                              setWhatIfOpen(true)
+                            } else {
+                              setShowEliteUpsell(true)
+                            }
                           }}
                         >
                           <Sparkles className="h-4 w-4 mr-1" />
                           What if?
+                          {!isElite && <Crown className="h-3 w-3 ml-1 text-amber-500" />}
                         </Button>
                       )}
                     </div>
@@ -672,6 +693,26 @@ export default function StackExplorerPage() {
             <AlertDescription>{result.educationalNotes}</AlertDescription>
           </Alert>
         )}
+
+        {/* Personalized Monitoring Plan - Elite */}
+        <PersonalizedMonitoringPlan
+          compoundNames={(() => {
+            const approaches = result.common_approaches_discussed ?? result.commonApproaches ?? []
+            const names = new Set<string>()
+            approaches.forEach((a: { additions?: string[]; typicalCompounds?: string[] }) => {
+              const list = a.additions ?? a.typicalCompounds ?? []
+              list.forEach((item: string) => {
+                String(item).split(/[,;]/).forEach((s) => {
+                  const t = s.replace(/\s*—.*$/, '').trim()
+                  if (t.length >= 2) names.add(t)
+                })
+              })
+            })
+            return Array.from(names)
+          })()}
+          bloodwork={bloodwork || undefined}
+          isElite={isElite}
+        />
 
         {/* Personalized Supp Stack - Elite Feature */}
         <PersonalizedSuppStack analysisType="stack-explorer" />

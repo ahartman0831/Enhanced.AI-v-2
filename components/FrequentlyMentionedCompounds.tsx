@@ -1,8 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@/components/ui/tooltip'
 import { AlertTriangle, Loader2, Pill } from 'lucide-react'
 import { SystemIcon, getMonitoringIcon } from '@/lib/system-icons'
 
@@ -84,6 +91,17 @@ export function FrequentlyMentionedCompounds({
     return 'Very High'
   }
 
+  const getRiskTooltip = (compound: CompoundFromDb): string => {
+    const label = getRiskLabel(compound.risk_score)
+    const systems = compound.affected_systems?.length
+      ? compound.affected_systems.join(', ')
+      : 'multiple systems'
+    const monitoring = compound.key_monitoring_markers?.length
+      ? compound.key_monitoring_markers.join(', ')
+      : 'bloodwork'
+    return `${label} due to ${systems} impact — communities emphasize ${monitoring} monitoring`
+  }
+
   if (loading) {
     return (
       <div className={`flex items-center gap-2 text-sm text-muted-foreground ${className}`}>
@@ -98,27 +116,42 @@ export function FrequentlyMentionedCompounds({
   }
 
   return (
-    <div className={`space-y-4 ${className}`}>
-      <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
-        <Pill className="h-4 w-4" />
-        Frequently Mentioned Compounds
-      </h4>
+    <TooltipProvider>
+      <div className={`space-y-4 ${className}`}>
+        <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+          <Pill className="h-4 w-4" />
+          Frequently Mentioned Compounds
+        </h4>
 
-      <div className="space-y-3">
-        {compounds.map((compound) => (
-          <Card key={compound.id} className="border-l-4 border-l-primary/50">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <div>
-                  <h5 className="font-medium">{compound.name}</h5>
-                  <Badge variant="outline" className="text-xs mt-1">
-                    {compound.category}
-                  </Badge>
+        <div className="space-y-3">
+          {compounds.map((compound) => (
+            <Card key={compound.id} className="border-l-4 border-l-primary/50">
+              <CardContent className="pt-4 pb-4">
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div>
+                    <h5 className="font-medium">
+                      <Link
+                        href={`/compounds?compound=${encodeURIComponent(compound.name)}`}
+                        className="hover:underline text-primary"
+                      >
+                        {compound.name}
+                      </Link>
+                    </h5>
+                    <Badge variant="outline" className="text-xs mt-1">
+                      {compound.category}
+                    </Badge>
+                  </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge variant={getRiskBadgeVariant(compound.risk_score)} className="cursor-help">
+                        Risk {compound.risk_score}/10 — {getRiskLabel(compound.risk_score)}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>{getRiskTooltip(compound)}</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
-                <Badge variant={getRiskBadgeVariant(compound.risk_score)}>
-                  Risk {compound.risk_score}/10 — {getRiskLabel(compound.risk_score)}
-                </Badge>
-              </div>
 
               {compound.what_it_is && (
                 <p className="text-sm text-muted-foreground mb-2">{compound.what_it_is}</p>
@@ -173,5 +206,6 @@ export function FrequentlyMentionedCompounds({
         )}
       </div>
     </div>
+    </TooltipProvider>
   )
 }
