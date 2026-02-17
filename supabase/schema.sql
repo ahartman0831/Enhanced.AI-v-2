@@ -67,9 +67,15 @@ CREATE TABLE IF NOT EXISTS compounds (
   affected_systems TEXT[],
   key_monitoring_markers TEXT[],
   nutrition_impact_summary TEXT,
+  full_breakdown_json JSONB,
+  breakdown_updated_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Add full breakdown columns if migrating existing schema
+ALTER TABLE compounds ADD COLUMN IF NOT EXISTS full_breakdown_json JSONB;
+ALTER TABLE compounds ADD COLUMN IF NOT EXISTS breakdown_updated_at TIMESTAMP WITH TIME ZONE;
 
 -- Create side_effect_logs table
 CREATE TABLE IF NOT EXISTS side_effect_logs (
