@@ -19,7 +19,6 @@ import {
   Shield
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { TooltipProvider } from '@/components/ui/tooltip'
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
@@ -47,8 +46,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <TooltipProvider>
-      <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-8">
         <div className="mb-8 flex items-center justify-between">
           <div>
@@ -176,6 +174,5 @@ export default function DashboardPage() {
           </Card>
         </div>
       </div>
-    </TooltipProvider>
   )
 }
