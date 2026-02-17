@@ -76,12 +76,25 @@ CREATE TABLE compounds (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Create side_effect_logs table
+CREATE TABLE side_effect_logs (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  compounds TEXT[] NOT NULL,
+  dosages TEXT,
+  side_effects TEXT[] NOT NULL,
+  analysis_result JSONB,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Enable Row Level Security (RLS)
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE enhanced_protocols ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bloodwork_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE photo_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE token_usage_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE side_effect_logs ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policies for profiles
 CREATE POLICY "Users can view their own profile"
@@ -156,6 +169,19 @@ CREATE POLICY "Users can insert their own token usage"
   ON token_usage_log FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+-- Create RLS policies for side_effect_logs
+CREATE POLICY "Users can view their own side effect logs"
+  ON side_effect_logs FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own side effect logs"
+  ON side_effect_logs FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own side effect logs"
+  ON side_effect_logs FOR UPDATE
+  USING (auth.uid() = user_id);
+
 -- Create RLS policies for compounds (public read access, admin insert/update)
 CREATE POLICY "Everyone can view compounds"
   ON compounds FOR SELECT
@@ -174,6 +200,9 @@ CREATE INDEX idx_photo_reports_created_at ON photo_reports(created_at);
 CREATE INDEX idx_token_usage_log_user_id ON token_usage_log(user_id);
 CREATE INDEX idx_token_usage_log_feature ON token_usage_log(feature_name);
 CREATE INDEX idx_token_usage_log_created_at ON token_usage_log(created_at);
+
+CREATE INDEX idx_side_effect_logs_user_id ON side_effect_logs(user_id);
+CREATE INDEX idx_side_effect_logs_created_at ON side_effect_logs(created_at);
 
 CREATE INDEX idx_compounds_category ON compounds(category);
 CREATE INDEX idx_compounds_risk_score ON compounds(risk_score);
@@ -198,6 +227,9 @@ CREATE TRIGGER update_bloodwork_reports_updated_at BEFORE UPDATE ON bloodwork_re
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_photo_reports_updated_at BEFORE UPDATE ON photo_reports
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_side_effect_logs_updated_at BEFORE UPDATE ON side_effect_logs
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_compounds_updated_at BEFORE UPDATE ON compounds

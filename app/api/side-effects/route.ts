@@ -62,20 +62,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Save analysis to a side effects log (we could create a side_effects_reports table later)
-    // For now, we'll just save to enhanced_protocols as a general analysis
-    const { data: protocolData, error: dbError } = await supabase
-      .from('enhanced_protocols')
+    // Save analysis to side_effect_logs table
+    const { data: sideEffectLog, error: dbError } = await supabase
+      .from('side_effect_logs')
       .insert({
         user_id: user.id,
-        stack_json: {
-          analysisType: 'side-effects',
-          compounds: compounds,
-          dosages: dosages,
-          sideEffects: sideEffects,
-          analysis: grokResult.data
-        },
-        nutrition_impact: grokResult.data?.nutritionImpact || grokResult.data?.nutrition_impact
+        compounds: compounds,
+        dosages: dosages,
+        side_effects: sideEffects,
+        analysis_result: grokResult.data
       })
       .select()
       .single()
@@ -89,7 +84,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: grokResult.data,
-      analysisId: protocolData?.id,
+      analysisId: sideEffectLog?.id,
       tokensUsed: grokResult.tokensUsed
     })
 
