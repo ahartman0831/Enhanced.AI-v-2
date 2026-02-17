@@ -28,30 +28,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Load side effect explainer prompt template
-    const promptPath = path.join(process.cwd(), 'prompts', 'side-effect-explainer.txt')
-    let promptTemplate: string
 
-    try {
-      promptTemplate = fs.readFileSync(promptPath, 'utf-8')
-    } catch (error) {
-      console.error('Error loading prompt template:', error)
-      return NextResponse.json(
-        { error: 'Failed to load side effect analysis prompt template' },
-        { status: 500 }
-      )
+    // Prepare variables for prompt template
+    const variables = {
+      compounds: compounds.join(', '),
+      dosages: dosages || 'No dosage information provided',
+      sideEffects: sideEffects.join(', ')
     }
-
-    // Fill in the prompt template with user data
-    const filledPrompt = promptTemplate
-      .replace('{compounds}', compounds.join(', '))
-      .replace('{dosages}', dosages || 'No dosage information provided')
-      .replace('{sideEffects}', sideEffects.join(', '))
 
     // Call Grok API
     const grokResult = await callGrok({
-      prompt: filledPrompt,
+      promptName: 'side-effect-explainer',
       userId: user.id,
+      variables,
       feature: 'side-effects'
     })
 

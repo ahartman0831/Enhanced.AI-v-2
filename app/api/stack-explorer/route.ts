@@ -28,32 +28,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Load educational prompt template
-    const promptPath = path.join(process.cwd(), 'prompts', 'educational_stack_explorer.txt')
-    let promptTemplate: string
-
-    try {
-      promptTemplate = fs.readFileSync(promptPath, 'utf-8')
-    } catch (error) {
-      console.error('Error loading prompt template:', error)
-      return NextResponse.json(
-        { error: 'Failed to load educational prompt template' },
-        { status: 500 }
-      )
+    // Prepare variables for prompt template
+    const variables = {
+      goals: goals,
+      experience: experience,
+      riskTolerance: riskTolerance,
+      bloodwork: bloodwork || 'No bloodwork summary provided'
     }
-
-    // Fill in the prompt template with user data
-    const filledPrompt = promptTemplate
-      .replace('{goals}', goals)
-      .replace('{experience}', experience)
-      .replace('{riskTolerance}', riskTolerance)
-      .replace('{bloodwork}', bloodwork || 'No bloodwork summary provided')
 
     // Call Grok API
     const grokResult = await callGrok({
-      prompt: filledPrompt,
+      promptName: 'educational_stack_explorer',
       userId: user.id,
-      feature: 'stack-explorer'
+      feature: 'stack-explorer',
+      variables
     })
 
     if (!grokResult.success) {

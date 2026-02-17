@@ -1,13 +1,41 @@
 import axios from 'axios'
 import { createSupabaseServerClient, createSupabaseBrowserClient } from './supabase'
+import fs from 'fs'
+import path from 'path'
 
 const GROK_API_BASE_URL = 'https://api.x.ai/v1'
 
 export interface CallGrokOptions {
-  prompt: string
+  prompt?: string
+  promptName?: string
   userId: string
   feature: string
   imageUrls?: string[]
+  variables?: Record<string, string>
+}
+
+/**
+ * Load a prompt file dynamically
+ */
+export async function loadPrompt(promptName: string): Promise<string> {
+  try {
+    const promptPath = path.join(process.cwd(), 'prompts', `${promptName}.txt`)
+    return fs.readFileSync(promptPath, 'utf8')
+  } catch (error) {
+    console.error(`Error loading prompt ${promptName}:`, error)
+    return ''
+  }
+}
+
+/**
+ * Replace variables in prompt template
+ */
+function replaceVariables(template: string, variables: Record<string, string> = {}): string {
+  let result = template
+  Object.entries(variables).forEach(([key, value]) => {
+    result = result.replace(new RegExp(`\\$\\{${key}\\}`, 'g'), value)
+  })
+  return result
 }
 
 export interface CallGrokResult {
@@ -19,9 +47,11 @@ export interface CallGrokResult {
 
 export async function callGrok({
   prompt,
+  promptName,
   userId,
   feature,
-  imageUrls = []
+  imageUrls = [],
+  variables = {}
 }: CallGrokOptions): Promise<CallGrokResult> {
   const apiKey = process.env.GROK_API_KEY
 
@@ -33,13 +63,29 @@ export async function callGrok({
   }
 
   try {
+    // Load prompt if promptName is provided
+    let finalPrompt = prompt
+    if (promptName && !prompt) {
+      finalPrompt = await loadPrompt(promptName)
+    }
+
+    if (!finalPrompt) {
+      return {
+        success: false,
+        error: 'No prompt provided'
+      }
+    }
+
+    // Replace variables in prompt
+    finalPrompt = replaceVariables(finalPrompt, variables)
+
     // Prepare the message content
-    let messageContent: any = prompt
+    let messageContent: any = finalPrompt
 
     // If there are images, structure the content as an array
     if (imageUrls.length > 0) {
       messageContent = [
-        { type: 'text', text: prompt },
+        { type: 'text', text: finalPrompt },
         ...imageUrls.map(url => ({
           type: 'image_url',
           image_url: { url }
