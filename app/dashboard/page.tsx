@@ -1,23 +1,5 @@
 'use client'
 
-import Link from 'next/link'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { HealthRiskScoreBadge } from '@/components/HealthRiskScoreBadge'
-import { WeeklyWhatChangedCard } from '@/components/WeeklyWhatChangedCard'
-import { CommunityInsightsCard } from '@/components/CommunityInsightsCard'
-import {
-  TrendingUp,
-  AlertTriangle,
-  FileText,
-  Search,
-  Camera,
-  Clock,
-  Stethoscope,
-  Pill,
-  Shield
-} from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 export default function DashboardPage() {
@@ -48,30 +30,18 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">
-              Welcome back, {user.email?.split('@')[0]}
-            </h1>
-            <p className="text-muted-foreground">
-              Here's an overview of your health optimization analysis.
-            </p>
-          </div>
-          <HealthRiskScoreBadge />
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-foreground mb-2">
+            Welcome back, {user.email?.split('@')[0]}
+          </h1>
+          <p className="text-muted-foreground">
+            Here's an overview of your health optimization analysis.
+          </p>
         </div>
 
-      {/* Disclaimer Banner */}
-      <Alert className="mb-8 border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertDescription className="text-sm">
-          <strong>Educational tool only. Not medical advice. Consult your physician.</strong> All analysis provided is for educational purposes only and should not be used as a substitute for professional medical advice, diagnosis, or treatment.
-        </AlertDescription>
-      </Alert>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <WeeklyWhatChangedCard className="lg:col-span-2" />
-        <CommunityInsightsCard />
-      </div>
+        <div className="text-center py-12">
+          <p className="text-lg">Dashboard loading...</p>
+        </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
