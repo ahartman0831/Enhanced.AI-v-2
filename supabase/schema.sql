@@ -83,6 +83,38 @@ CREATE TABLE IF NOT EXISTS side_effect_logs (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Create user_data_consent table for anonymized data contributions
+CREATE TABLE IF NOT EXISTS user_data_consent (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  consent_type TEXT NOT NULL CHECK (consent_type IN ('anonymized_insights')),
+  consented_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  revoked_at TIMESTAMP WITH TIME ZONE,
+  UNIQUE(user_id, consent_type)
+);
+
+-- Create anonymized_contributions table for hashed user contributions
+CREATE TABLE IF NOT EXISTS anonymized_contributions (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_hash TEXT NOT NULL, -- SHA-256 hash of user_id + salt
+  contribution_json JSONB NOT NULL, -- Anonymized health data
+  contributed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  INDEX(user_hash, contributed_at)
+);
+
+-- Create anonymized_trends table for aggregated insights
+CREATE TABLE IF NOT EXISTS anonymized_trends (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  category TEXT NOT NULL, -- e.g., 'bloodwork', 'protocols', 'timeline'
+  subgroup TEXT, -- e.g., 'beginner_experience', 'trt_users'
+  metric TEXT NOT NULL, -- e.g., 'avg_testosterone_change'
+  value JSONB NOT NULL, -- Aggregated value (avg, median, etc.)
+  sample_size INTEGER NOT NULL CHECK (sample_size >= 10),
+  period TEXT NOT NULL, -- e.g., 'last_30_days', 'last_90_days'
+  calculated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(category, subgroup, metric, period)
+);
+
 -- Enable Row Level Security (RLS) - idempotent
 DO $$
 BEGIN
@@ -109,6 +141,18 @@ BEGIN
 
     IF NOT EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname = 'side_effect_logs' AND n.nspname = 'public' AND c.relrowsecurity = false) THEN
         ALTER TABLE side_effect_logs ENABLE ROW LEVEL SECURITY;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname = 'user_data_consent' AND n.nspname = 'public' AND c.relrowsecurity = false) THEN
+        ALTER TABLE user_data_consent ENABLE ROW LEVEL SECURITY;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname = 'anonymized_contributions' AND n.nspname = 'public' AND c.relrowsecurity = false) THEN
+        ALTER TABLE anonymized_contributions ENABLE ROW LEVEL SECURITY;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname = 'anonymized_trends' AND n.nspname = 'public' AND c.relrowsecurity = false) THEN
+        ALTER TABLE anonymized_trends ENABLE ROW LEVEL SECURITY;
     END IF;
 END $$;
 
@@ -224,6 +268,31 @@ CREATE POLICY "Everyone can view compounds"
   ON compounds FOR SELECT
   USING (true);
 
+-- Create RLS policies for user_data_consent
+DROP POLICY IF EXISTS "Users can view their own consent" ON user_data_consent;
+CREATE POLICY "Users can view their own consent"
+  ON user_data_consent FOR SELECT
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert their own consent" ON user_data_consent;
+CREATE POLICY "Users can insert their own consent"
+  ON user_data_consent FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update their own consent" ON user_data_consent;
+CREATE POLICY "Users can update their own consent"
+  ON user_data_consent FOR UPDATE
+  USING (auth.uid() = user_id);
+
+-- Create RLS policies for anonymized_contributions (service role only - no user access)
+-- This table should only be accessible via service role for security
+
+-- Create RLS policies for anonymized_trends (public read access)
+DROP POLICY IF EXISTS "Everyone can view anonymized trends" ON anonymized_trends;
+CREATE POLICY "Everyone can view anonymized trends"
+  ON anonymized_trends FOR SELECT
+  USING (true);
+
 -- Create indexes for better performance
 DROP INDEX IF EXISTS idx_enhanced_protocols_user_id;
 CREATE INDEX idx_enhanced_protocols_user_id ON enhanced_protocols(user_id);
@@ -257,6 +326,20 @@ CREATE INDEX idx_compounds_category ON compounds(category);
 DROP INDEX IF EXISTS idx_compounds_risk_score;
 CREATE INDEX idx_compounds_risk_score ON compounds(risk_score);
 
+-- Indexes for anonymized data tables
+DROP INDEX IF EXISTS idx_user_data_consent_user_id;
+CREATE INDEX idx_user_data_consent_user_id ON user_data_consent(user_id);
+
+DROP INDEX IF EXISTS idx_anonymized_contributions_user_hash;
+CREATE INDEX idx_anonymized_contributions_user_hash ON anonymized_contributions(user_hash);
+DROP INDEX IF EXISTS idx_anonymized_contributions_contributed_at;
+CREATE INDEX idx_anonymized_contributions_contributed_at ON anonymized_contributions(contributed_at);
+
+DROP INDEX IF EXISTS idx_anonymized_trends_category;
+CREATE INDEX idx_anonymized_trends_category ON anonymized_trends(category);
+DROP INDEX IF EXISTS idx_anonymized_trends_calculated_at;
+CREATE INDEX idx_anonymized_trends_calculated_at ON anonymized_trends(calculated_at);
+
 -- Create functions for updating timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -289,4 +372,8 @@ CREATE TRIGGER update_side_effect_logs_updated_at BEFORE UPDATE ON side_effect_l
 
 DROP TRIGGER IF EXISTS update_compounds_updated_at ON compounds;
 CREATE TRIGGER update_compounds_updated_at BEFORE UPDATE ON compounds
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_side_effect_logs_updated_at ON side_effect_logs;
+CREATE TRIGGER update_side_effect_logs_updated_at BEFORE UPDATE ON side_effect_logs
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

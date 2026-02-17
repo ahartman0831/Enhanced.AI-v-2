@@ -17,7 +17,9 @@ import {
   Camera,
   Clock,
   Stethoscope,
-  TrendingUp
+  TrendingUp,
+  User,
+  Shield
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useSupabase } from '@/hooks/useSupabase'
@@ -33,6 +35,7 @@ const navigation = [
   { name: 'Recovery Timeline', href: '/recovery-timeline', icon: Clock },
   { name: 'Counterfeit Checker', href: '/counterfeit-checker', icon: Shield },
   { name: 'Telehealth Referral', href: '/telehealth-referral', icon: Stethoscope },
+  { name: 'Profile', href: '/profile', icon: User },
 ]
 
 export function Sidebar() {
