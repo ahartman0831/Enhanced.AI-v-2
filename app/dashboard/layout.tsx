@@ -10,7 +10,7 @@ export default function DashboardLayout({
     <ThemeProvider
       attribute="class"
       defaultTheme="dark"
-      enableSystem
+      enableSystem={false}
       disableTransitionOnChange
     >
       <div className="flex h-screen bg-background">
