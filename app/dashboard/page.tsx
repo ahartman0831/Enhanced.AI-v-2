@@ -47,7 +47,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8">
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground mb-2">
@@ -60,20 +60,20 @@ export default function DashboardPage() {
           <HealthRiskScoreBadge />
         </div>
 
-        {/* Disclaimer Banner */}
-        <Alert className="mb-8 border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription className="text-sm">
-            <strong>Educational tool only. Not medical advice. Consult your physician.</strong> All analysis provided is for educational purposes only and should not be used as a substitute for professional medical advice, diagnosis, or treatment.
-          </AlertDescription>
-        </Alert>
+      {/* Disclaimer Banner */}
+      <Alert className="mb-8 border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertDescription className="text-sm">
+          <strong>Educational tool only. Not medical advice. Consult your physician.</strong> All analysis provided is for educational purposes only and should not be used as a substitute for professional medical advice, diagnosis, or treatment.
+        </AlertDescription>
+      </Alert>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <WeeklyWhatChangedCard className="lg:col-span-2" />
-          <CommunityInsightsCard />
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <WeeklyWhatChangedCard className="lg:col-span-2" />
+        <CommunityInsightsCard />
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
               <CardTitle>Quick Actions</CardTitle>
