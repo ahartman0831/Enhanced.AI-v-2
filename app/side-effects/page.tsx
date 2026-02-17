@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CompoundNutritionCard } from '@/components/CompoundNutritionCard'
 import { DoctorPdfButton } from '@/components/DoctorPdfButton'
 import { PersonalizedSuppStack } from '@/components/PersonalizedSuppStack'
+import { CommonSupportsCard } from '@/components/CommonSupportsCard'
 import {
   AlertTriangle,
   Plus,
@@ -51,6 +52,12 @@ interface SideEffectAnalysisResult {
   }
   monitoringProtocol: string[]
   educationalNotes: string
+  commonlyDiscussedSupports?: Array<{
+    name: string
+    commonPurpose: string
+    affectedSystem: string
+    communityNotes?: string
+  }>
 }
 
 const COMMON_SIDE_EFFECTS = [
@@ -610,6 +617,15 @@ export default function SideEffectsPage() {
 
         {/* Personalized Supp Stack - Elite Feature */}
         <PersonalizedSuppStack analysisType="side-effects" />
+
+        {/* Commonly Discussed Supports */}
+        {result.commonlyDiscussedSupports && result.commonlyDiscussedSupports.length > 0 && (
+          <CommonSupportsCard
+            supports={result.commonlyDiscussedSupports}
+            analysisType="side-effects"
+            isElite={false} // TODO: Implement tier checking
+          />
+        )}
 
             {/* PDF Button */}
             <div className="flex justify-center">

@@ -32,7 +32,15 @@ Based on the user's goals, experience level, and risk tolerance, provide an educ
     "Blood marker 2 and educational rationale",
     "Subjective markers like energy, recovery, etc."
   ],
-  "educationalNotes": "General educational reminders about individual variability, importance of bloodwork, professional consultation, etc."
+  "educationalNotes": "General educational reminders about individual variability, importance of bloodwork, professional consultation, etc.",
+  "commonlyDiscussedSupports": [
+    {
+      "name": "Compound/Support Name",
+      "commonPurpose": "Brief description of why this is often discussed",
+      "affectedSystem": "Primary system this is commonly discussed for",
+      "communityNotes": "General community observations about this support"
+    }
+  ]
 }
 
 ## Guidelines for Educational Content

@@ -43,7 +43,15 @@ Based on the reported compounds, dosages, and side effects, provide an education
     "Frequency of monitoring",
     "When to seek professional help"
   ],
-  "educationalNotes": "General educational reminders about individual variability, importance of professional consultation, gradual changes, etc."
+  "educationalNotes": "General educational reminders about individual variability, importance of professional consultation, gradual changes, etc.",
+  "commonlyDiscussedSupports": [
+    {
+      "name": "Compound/Support Name",
+      "commonPurpose": "Brief description of why this is often discussed for side effect management",
+      "affectedSystem": "Primary system this support is commonly discussed for",
+      "communityNotes": "General community observations about this support"
+    }
+  ]
 }
 
 ## Guidelines for Educational Content

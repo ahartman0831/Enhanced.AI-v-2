@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge'
 import { CompoundNutritionCard } from '@/components/CompoundNutritionCard'
 import { DoctorPdfButton } from '@/components/DoctorPdfButton'
 import { PersonalizedSuppStack } from '@/components/PersonalizedSuppStack'
+import { CommonSupportsCard } from '@/components/CommonSupportsCard'
 import {
   ChevronLeft,
   ChevronRight,
@@ -46,6 +47,12 @@ interface StackAnalysisResult {
   }
   monitoringRecommendations: string[]
   educationalNotes: string
+  commonlyDiscussedSupports?: Array<{
+    name: string
+    commonPurpose: string
+    affectedSystem: string
+    communityNotes?: string
+  }>
 }
 
 const GOALS_OPTIONS = [
@@ -464,6 +471,15 @@ export default function StackExplorerPage() {
 
         {/* Personalized Supp Stack - Elite Feature */}
         <PersonalizedSuppStack analysisType="stack-explorer" />
+
+        {/* Commonly Discussed Supports */}
+        {result.commonlyDiscussedSupports && result.commonlyDiscussedSupports.length > 0 && (
+          <CommonSupportsCard
+            supports={result.commonlyDiscussedSupports}
+            analysisType="stack-explorer"
+            isElite={false} // TODO: Implement tier checking
+          />
+        )}
 
             {/* PDF Button */}
             <div className="flex justify-center">
