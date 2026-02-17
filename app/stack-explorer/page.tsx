@@ -15,6 +15,9 @@ import { CompoundNutritionCard } from '@/components/CompoundNutritionCard'
 import { DoctorPdfButton } from '@/components/DoctorPdfButton'
 import { PersonalizedSuppStack } from '@/components/PersonalizedSuppStack'
 import { CommonSupportsCard } from '@/components/CommonSupportsCard'
+import { FrequentlyMentionedCompounds } from '@/components/FrequentlyMentionedCompounds'
+import { WhatIfCompoundDialog } from '@/components/WhatIfCompoundDialog'
+import { SystemIcon, getMonitoringIcon } from '@/lib/system-icons'
 import {
   ChevronLeft,
   ChevronRight,
@@ -25,7 +28,8 @@ import {
   AlertTriangle,
   Loader2,
   CheckCircle,
-  Lightbulb
+  Lightbulb,
+  Sparkles
 } from 'lucide-react'
 
 interface CommonApproachDiscussed {
@@ -121,7 +125,50 @@ export default function StackExplorerPage() {
   const [riskTolerance, setRiskTolerance] = useState('')
   const [bloodwork, setBloodwork] = useState('')
 
+  const [whatIfOpen, setWhatIfOpen] = useState(false)
+  const [whatIfApproachIndex, setWhatIfApproachIndex] = useState(0)
+  const [whatIfCompoundNames, setWhatIfCompoundNames] = useState<string[]>([])
+
   const totalSteps = 4
+
+  const parseCompoundNames = (additions: string[] | undefined): string[] => {
+    if (!additions?.length) return []
+    return additions.flatMap((item) =>
+      String(item)
+        .split(/[,;]/)
+        .map((s) => s.replace(/\s*—.*$/, '').replace(/\(e\.g\.,?\s*\)?/i, '').trim())
+        .filter((s) => s.length >= 2)
+    )
+  }
+
+  const handleWhatIfRegenerate = async (tweak: string) => {
+    if (!result) return
+    setIsSubmitting(true)
+    setError(null)
+    try {
+      const finalGoals = goals === 'Other' ? customGoal : goals
+      const response = await fetch('/api/stack-explorer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          goals: finalGoals,
+          experience,
+          riskTolerance,
+          bloodwork: bloodwork || undefined,
+          compoundTweak: tweak,
+          approachIndex: whatIfApproachIndex,
+          previousResult: result
+        })
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to regenerate')
+      setResult(data.data)
+    } catch (err: any) {
+      setError(err.message || 'Failed to regenerate analysis')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   const nextStep = () => {
     if (currentStep < totalSteps) {
@@ -363,66 +410,87 @@ export default function StackExplorerPage() {
         <div>
           <h2 className="text-2xl font-bold mb-6">Common Educational Approaches</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {result.common_approaches_discussed?.map((approach, index) => (
-              <Card key={index}>
-                <CardHeader>
-                  <CardTitle className="text-lg">Approach {index + 1}</CardTitle>
-                  <CardDescription>{approach.base}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {approach.additions && approach.additions.length > 0 && (
-                    <div>
-                      <h4 className="font-semibold text-sm mb-2">Frequently Mentioned:</h4>
-                      <div className="flex flex-wrap gap-1">
-                        {approach.additions.map((item, idx) => (
-                          <Badge key={idx} variant="outline">{item}</Badge>
-                        ))}
+            {result.common_approaches_discussed?.map((approach, index) => {
+              const compoundNames = parseCompoundNames(approach.additions)
+              return (
+                <Card key={index}>
+                  <CardHeader>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <CardTitle className="text-lg">Approach {index + 1}</CardTitle>
+                        <CardDescription>{approach.base}</CardDescription>
                       </div>
+                      {compoundNames.length > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="shrink-0"
+                          onClick={() => {
+                            setWhatIfCompoundNames(compoundNames)
+                            setWhatIfApproachIndex(index)
+                            setWhatIfOpen(true)
+                          }}
+                        >
+                          <Sparkles className="h-4 w-4 mr-1" />
+                          What if?
+                        </Button>
+                      )}
                     </div>
-                  )}
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {approach.additions && approach.additions.length > 0 && (
+                      <FrequentlyMentionedCompounds compoundNames={compoundNames} />
+                    )}
 
-                  <div>
-                    <h4 className="font-semibold text-sm mb-2">Commonly Discussed Benefits:</h4>
-                    <p className="text-sm text-muted-foreground">{approach.benefits}</p>
-                  </div>
-
-                  <div>
-                    <h4 className="font-semibold text-sm mb-2 text-destructive">Risks & Monitoring Focus:</h4>
-                    <p className="text-sm text-muted-foreground">{approach.risks}</p>
-                  </div>
-
-                  {approach.affected_systems && approach.affected_systems.length > 0 && (
                     <div>
-                      <h4 className="font-semibold text-sm mb-2">Affected Systems:</h4>
-                      <div className="flex flex-wrap gap-1">
-                        {approach.affected_systems.map((sys, idx) => (
-                          <Badge key={idx} variant="secondary">{sys}</Badge>
-                        ))}
+                      <h4 className="font-semibold text-sm mb-2">Commonly Discussed Benefits:</h4>
+                      <p className="text-sm text-muted-foreground">{approach.benefits}</p>
+                    </div>
+
+                    <div>
+                      <h4 className="font-semibold text-sm mb-2 text-destructive">Risks & Monitoring Focus:</h4>
+                      <p className="text-sm text-muted-foreground">{approach.risks}</p>
+                    </div>
+
+                    {approach.affected_systems && approach.affected_systems.length > 0 && (
+                      <div>
+                        <h4 className="font-semibold text-sm mb-2">Affected Systems:</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {approach.affected_systems.map((sys, idx) => (
+                            <Badge key={idx} variant="secondary" className="flex items-center gap-1.5">
+                              <SystemIcon system={sys} className="h-3.5 w-3.5" />
+                              {sys}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {approach.monitoring && approach.monitoring.length > 0 && (
+                    {approach.monitoring && approach.monitoring.length > 0 && (
+                      <div>
+                        <h4 className="font-semibold text-sm mb-2">Monitoring:</h4>
+                        <ul className="text-sm text-muted-foreground space-y-1">
+                          {approach.monitoring.map((m, idx) => {
+                            const Icon = getMonitoringIcon(m)
+                            return (
+                              <li key={idx} className="flex items-start gap-2">
+                                <Icon className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                                {m}
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      </div>
+                    )}
+
                     <div>
-                      <h4 className="font-semibold text-sm mb-2">Monitoring:</h4>
-                      <ul className="text-sm text-muted-foreground space-y-1">
-                        {approach.monitoring.map((m, idx) => (
-                          <li key={idx} className="flex items-start">
-                            <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
-                            {m}
-                          </li>
-                        ))}
-                      </ul>
+                      <h4 className="font-semibold text-sm mb-2">Nutrition Impact:</h4>
+                      <p className="text-sm text-muted-foreground">{approach.nutrition_impact}</p>
                     </div>
-                  )}
-
-                  <div>
-                    <h4 className="font-semibold text-sm mb-2">Nutrition Impact:</h4>
-                    <p className="text-sm text-muted-foreground">{approach.nutrition_impact}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              )
+            })}
             {!result.common_approaches_discussed && result.commonApproaches?.map((approach, index) => (
               <Card key={index}>
                 <CardHeader>
@@ -430,14 +498,9 @@ export default function StackExplorerPage() {
                   <CardDescription>{approach.description}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
-                    <h4 className="font-semibold text-sm mb-2">Typical Compounds Discussed:</h4>
-                    <div className="flex flex-wrap gap-1">
-                      {approach.typicalCompounds?.map((compound, idx) => (
-                        <Badge key={idx} variant="outline">{compound}</Badge>
-                      ))}
-                    </div>
-                  </div>
+                  {approach.typicalCompounds && approach.typicalCompounds.length > 0 && (
+                    <FrequentlyMentionedCompounds compoundNames={approach.typicalCompounds} />
+                  )}
 
                   <div>
                     <h4 className="font-semibold text-sm mb-2">Educational Rationale:</h4>
@@ -545,12 +608,15 @@ export default function StackExplorerPage() {
             </CardHeader>
             <CardContent>
               <ul className="space-y-2">
-                {result.monitoringRecommendations.map((recommendation, index) => (
-                  <li key={index} className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">{recommendation}</span>
-                  </li>
-                ))}
+                {result.monitoringRecommendations.map((recommendation, index) => {
+                  const Icon = getMonitoringIcon(recommendation)
+                  return (
+                    <li key={index} className="flex items-start gap-2">
+                      <Icon className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm">{recommendation}</span>
+                    </li>
+                  )
+                })}
               </ul>
             </CardContent>
           </Card>
@@ -607,6 +673,15 @@ export default function StackExplorerPage() {
             Analyze Different Stack
           </Button>
         </div>
+
+        {/* What If Dialog */}
+        <WhatIfCompoundDialog
+          open={whatIfOpen}
+          onOpenChange={setWhatIfOpen}
+          compoundNames={whatIfCompoundNames}
+          approachIndex={whatIfApproachIndex}
+          onRegenerate={handleWhatIfRegenerate}
+        />
       </div>
     )
   }

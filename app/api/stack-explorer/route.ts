@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json()
-    const { goals, experience, riskTolerance, bloodwork } = body
+    const { goals, experience, riskTolerance, bloodwork, compoundTweak, approachIndex, previousResult } = body
 
     if (!goals || !experience || !riskTolerance) {
       return NextResponse.json(
@@ -28,17 +28,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Prepare variables for prompt template
-    const variables = {
-      goals: goals,
-      experience: experience,
-      riskTolerance: riskTolerance,
+    const isWhatIf = compoundTweak && typeof compoundTweak === 'string' && previousResult
+
+    const variables: Record<string, string> = {
+      goals: String(goals),
+      experience: String(experience),
+      riskTolerance: String(riskTolerance),
       bloodwork: bloodwork || 'No bloodwork summary provided'
+    }
+
+    let promptName = 'educational_stack_explorer'
+    if (isWhatIf) {
+      promptName = 'educational_stack_explorer_whatif'
+      variables.compoundTweak = String(compoundTweak)
+      variables.approachIndex = String(approachIndex ?? 0)
+      variables.previousResult = typeof previousResult === 'string' ? previousResult : JSON.stringify(previousResult)
     }
 
     // Call Grok API
     const grokResult = await callGrok({
-      promptName: 'educational_stack_explorer',
+      promptName,
       userId: user.id,
       feature: 'stack-explorer',
       variables

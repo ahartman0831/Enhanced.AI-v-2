@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Crown, Pill, ExternalLink, AlertTriangle, Star } from 'lucide-react'
+import { SystemIcon } from '@/lib/system-icons'
 import { generateAmazonAffiliateLink, getAffiliateDisclosure } from '@/lib/affiliates'
 
 interface SupportItem {
@@ -72,17 +73,6 @@ export function CommonSupportsCard({
   const displaySupports = isElite ? supports : generalSupports
   const isGeneral = !isElite
 
-  const getSystemIcon = (system: string) => {
-    const lowerSystem = system.toLowerCase()
-    if (lowerSystem.includes('cardiovascular') || lowerSystem.includes('heart')) return '❤️'
-    if (lowerSystem.includes('endocrine') || lowerSystem.includes('hormonal')) return '⚡'
-    if (lowerSystem.includes('hepatic') || lowerSystem.includes('liver')) return '🫀'
-    if (lowerSystem.includes('neurological') || lowerSystem.includes('brain')) return '🧠'
-    if (lowerSystem.includes('muscle') || lowerSystem.includes('recovery')) return '💪'
-    if (lowerSystem.includes('joint')) return '🦴'
-    if (lowerSystem.includes('immune')) return '🛡️'
-    return '💊'
-  }
 
   const getPurposeColor = (purpose: string) => {
     if (purpose.includes('cardiovascular') || purpose.includes('heart')) return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
@@ -143,7 +133,9 @@ export function CommonSupportsCard({
             <div key={index} className="border rounded-lg p-4 bg-white/50 dark:bg-black/20">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">{getSystemIcon(support.affected_system)}</span>
+                  <div className="p-2 rounded-lg bg-muted">
+                    <SystemIcon system={support.affected_system} className="h-5 w-5" />
+                  </div>
                   <div>
                     <h4 className="font-medium text-lg">{support.name}</h4>
                     <p className="text-sm text-muted-foreground">
@@ -151,7 +143,8 @@ export function CommonSupportsCard({
                     </p>
                   </div>
                 </div>
-                <Badge className={getPurposeColor(support.common_purpose)}>
+                <Badge className={`${getPurposeColor(support.common_purpose)} flex items-center gap-1`}>
+                  <SystemIcon system={support.affected_system} className="h-3 w-3" />
                   {support.affected_system}
                 </Badge>
               </div>
