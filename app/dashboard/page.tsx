@@ -13,7 +13,8 @@ import {
   Camera,
   Clock,
   Stethoscope,
-  Pill
+  Pill,
+  Shield
 } from 'lucide-react'
 
 export default async function DashboardPage() {
@@ -125,16 +126,34 @@ export default async function DashboardPage() {
                   Side Effects Monitor
                 </Button>
               </Link>
+              <Link href="/bloodwork-parser">
+                <Button className="w-full justify-start" variant="outline">
+                  <FileText className="mr-2 h-4 w-4" />
+                  Bloodwork Parser
+                </Button>
+              </Link>
               <Link href="/progress-photos">
                 <Button className="w-full justify-start" variant="outline">
                   <Camera className="mr-2 h-4 w-4" />
                   Progress Photos
                 </Button>
               </Link>
+              <Link href="/results-forecaster">
+                <Button className="w-full justify-start" variant="outline">
+                  <TrendingUp className="mr-2 h-4 w-4" />
+                  Results Forecaster
+                </Button>
+              </Link>
               <Link href="/recovery-timeline">
                 <Button className="w-full justify-start" variant="outline">
                   <Clock className="mr-2 h-4 w-4" />
                   Recovery Timeline
+                </Button>
+              </Link>
+              <Link href="/counterfeit-checker">
+                <Button className="w-full justify-start" variant="outline">
+                  <Shield className="mr-2 h-4 w-4" />
+                  Counterfeit Checker
                 </Button>
               </Link>
               <Link href="/telehealth-referral">

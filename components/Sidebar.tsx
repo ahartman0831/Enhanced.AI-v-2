@@ -16,7 +16,8 @@ import {
   Sun,
   Camera,
   Clock,
-  Stethoscope
+  Stethoscope,
+  TrendingUp
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useSupabase } from '@/hooks/useSupabase'
@@ -26,8 +27,11 @@ const navigation = [
   { name: 'Compounds', href: '/compounds', icon: Pill },
   { name: 'Stack Explorer', href: '/stack-explorer', icon: Search },
   { name: 'Side Effects', href: '/side-effects', icon: AlertTriangle },
+  { name: 'Bloodwork Parser', href: '/bloodwork-parser', icon: FileText },
   { name: 'Progress Photos', href: '/progress-photos', icon: Camera },
+  { name: 'Results Forecaster', href: '/results-forecaster', icon: TrendingUp },
   { name: 'Recovery Timeline', href: '/recovery-timeline', icon: Clock },
+  { name: 'Counterfeit Checker', href: '/counterfeit-checker', icon: Shield },
   { name: 'Telehealth Referral', href: '/telehealth-referral', icon: Stethoscope },
 ]
 
