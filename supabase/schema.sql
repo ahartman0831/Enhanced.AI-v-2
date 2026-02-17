@@ -98,8 +98,7 @@ CREATE TABLE IF NOT EXISTS anonymized_contributions (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   user_hash TEXT NOT NULL, -- SHA-256 hash of user_id + salt
   contribution_json JSONB NOT NULL, -- Anonymized health data
-  contributed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  INDEX(user_hash, contributed_at)
+  contributed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Create anonymized_trends table for aggregated insights
