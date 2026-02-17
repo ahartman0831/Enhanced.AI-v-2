@@ -1,0 +1,109 @@
+'use client'
+
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { FileText, Download, Crown, ArrowRight } from 'lucide-react'
+import { useState } from 'react'
+
+interface DoctorPdfButtonProps {
+  patientData: {
+    name: string
+    id: string
+    analysis: any
+  }
+  analysisType: 'stack-explorer' | 'side-effects' | 'compounds'
+  onGenerate?: () => Promise<void>
+}
+
+export function DoctorPdfButton({ patientData, analysisType, onGenerate }: DoctorPdfButtonProps) {
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleGeneratePDF = async () => {
+    setIsGenerating(true)
+    setError(null)
+
+    try {
+      if (onGenerate) {
+        await onGenerate()
+      } else {
+        // Generate PDF via API
+        const response = await fetch('/api/generate-pdf', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            analysisType,
+            patientData
+          })
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to generate PDF')
+        }
+
+        // Create download link for the PDF
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `${patientData.name.replace(/[^a-zA-Z0-9]/g, '_')}_medical_summary.pdf`
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+      }
+    } catch (err: any) {
+      console.error('Error generating PDF:', err)
+      setError(err.message || 'Failed to generate PDF report')
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <Button
+        onClick={handleGeneratePDF}
+        disabled={isGenerating}
+        className="flex items-center gap-2 w-full sm:w-auto"
+        variant="outline"
+      >
+        {isGenerating ? (
+          <>
+            <FileText className="h-4 w-4 animate-pulse" />
+            Generating Medical Report...
+          </>
+        ) : (
+          <>
+            <Download className="h-4 w-4" />
+            Generate Doctor Report (PDF)
+          </>
+        )}
+      </Button>
+
+      {error && (
+        <p className="text-sm text-destructive text-center">{error}</p>
+      )}
+
+      {/* Elite-only upsell */}
+      <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-center">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <Crown className="h-5 w-5 text-amber-600" />
+          <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+            Elite Feature
+          </Badge>
+        </div>
+        <p className="text-sm text-amber-800 dark:text-amber-200 mb-3">
+          Unlock TRT optimization protocols & specialist referral packages
+        </p>
+        <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white">
+          Upgrade to Elite
+          <ArrowRight className="h-4 w-4 ml-2" />
+        </Button>
+      </div>
+    </div>
+  )
+}
