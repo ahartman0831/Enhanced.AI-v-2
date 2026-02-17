@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import { createSupabaseServerClient } from './supabase'
+import { createSupabaseServerClient } from './supabase-server'
 
 const ANON_SALT = process.env.ANON_SALT || 'enhanced-ai-anonymization-salt-v2'
 

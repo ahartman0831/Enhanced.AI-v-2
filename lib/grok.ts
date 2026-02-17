@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { createSupabaseServerClient, createSupabaseBrowserClient } from './supabase'
+import { createSupabaseServerClient } from './supabase-server'
 import fs from 'fs'
 import path from 'path'
 
