@@ -68,7 +68,7 @@ export function generateAmazonAffiliateLink(supplementName: string, searchTerm?:
  * Get affiliate disclosure text for legal compliance
  */
 export function getAffiliateDisclosure(): string {
-  return "Affiliate Links: Some links may earn commissions to support development. Prices and availability subject to change."
+  return "Some links earn commissions to support app development. Prices and availability subject to change."
 }
 
 /**
@@ -103,6 +103,21 @@ export const TELEHEALTH_PARTNERS = {
   quest: process.env.NEXT_PUBLIC_QUEST_AFFILIATE_URL || 'https://www.questdiagnostics.com/',
   letsGetChecked: process.env.NEXT_PUBLIC_LETSGETCHECKED_AFFILIATE_URL || 'https://www.letsgetchecked.com/',
 } as const
+
+/**
+ * Lab testing partners for counterfeit/product verification (educational)
+ * AnabolicLab: independent testing for supplements/compounds
+ */
+export const LAB_TESTING_PARTNERS = {
+  anabolicLab: process.env.NEXT_PUBLIC_ANABOLICLAB_AFFILIATE_URL || 'https://anaboliclab.com/',
+} as const
+
+/**
+ * Get lab testing CTA URL for counterfeit checker verification methods
+ */
+export function getLabTestingLink(partner: keyof typeof LAB_TESTING_PARTNERS = 'anabolicLab'): string {
+  return LAB_TESTING_PARTNERS[partner]
+}
 
 /**
  * Get CTA link for a partner type (used in partnership_note parsing)

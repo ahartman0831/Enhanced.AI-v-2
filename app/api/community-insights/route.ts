@@ -37,13 +37,29 @@ export async function GET(request: NextRequest) {
       .map(s => s === null ? 'subgroup.is.null' : `subgroup.eq.${s}`)
       .join(',')
 
-    // Get anonymized trends from the database
-    const { data: trends, error } = await supabase
-      .from('anonymized_trends')
-      .select('*')
-      .or(orFilter)
-      .order('calculated_at', { ascending: false })
-      .limit(15)
+    // Get anonymized trends: personalized (bloodwork/protocols by subgroup) + feature-specific (compound/counterfeit/side_effects)
+    const [personalizedRes, featureRes] = await Promise.all([
+      supabase
+        .from('anonymized_trends')
+        .select('*')
+        .or(orFilter)
+        .order('calculated_at', { ascending: false })
+        .limit(10),
+      supabase
+        .from('anonymized_trends')
+        .select('*')
+        .in('category', ['compound_interest', 'side_effects', 'counterfeit'])
+        .order('calculated_at', { ascending: false })
+        .limit(5)
+    ])
+
+    const error = personalizedRes.error || featureRes.error
+    const trends = [
+      ...(personalizedRes.data || []),
+      ...(featureRes.data || []).filter(
+        f => !(personalizedRes.data || []).some(p => p.id === f.id)
+      )
+    ].slice(0, 15)
 
     if (error) {
       console.error('Error fetching anonymized trends:', error)
@@ -99,23 +115,48 @@ export async function GET(request: NextRequest) {
 
         case 'protocols':
           if (trend.metric.includes('duration')) {
-            insight = `${subgroupLabel.charAt(0).toUpperCase() + subgroupLabel.slice(1)} typically maintain protocols ~${trend.value.average} days`
+            insight = `${subgroupLabel.charAt(0).toUpperCase() + subgroupLabel.slice(1)} typically maintain protocols ~${trend.value?.average} days`
             educational_note = 'Protocol duration varies based on individual goals and responses.'
+          } else if (trend.value?.count != null) {
+            insight = `Community: ${trend.value.count} users in ${subgroupLabel}`
+            educational_note = 'Educational insights based on anonymized user experiences.'
           } else {
-            insight = `Community trends: ${trend.value.average} average ${trend.metric.replace(/_/g, ' ')}`
+            insight = `Community trends: ${trend.value?.average ?? trend.value?.count} ${trend.metric.replace(/_/g, ' ')}`
             educational_note = 'Educational insights based on anonymized user experiences.'
           }
           break
 
+        case 'compound_interest':
+          insight = `"${trend.subgroup}" is among commonly explored compounds (${trend.value?.count ?? 0} community checks)`
+          educational_note = 'Popularity reflects community interest, not safety or efficacy.'
+          break
+
+        case 'side_effects':
+          insight = `Community pattern: ${(trend.subgroup || '').replace('::', ' with ')}, reported ${trend.value?.count ?? 0} times`
+          educational_note = 'Commonly discussed patterns; individual experiences vary.'
+          break
+
+        case 'counterfeit':
+          insight = trend.metric === 'check_count'
+            ? `Product type "${trend.subgroup}" checked ${trend.value?.count ?? 0} times by community`
+            : `Authenticity flag frequently noted: ${trend.subgroup?.replace('flag_', '')}`
+          educational_note = 'Lab testing remains the gold standard for verification.'
+          break
+
         default:
-          insight = `Community trend: ${trend.category} - ${metricName} (${trend.value.average})`
+          insight = `Community trend: ${trend.category} - ${metricName} (${trend.value?.average ?? trend.value?.count ?? 'N/A'})`
           educational_note = 'Anonymized data helps improve educational insights.'
       }
 
+      const categoryLabels: Record<string, string> = {
+        bloodwork: 'Bloodwork Trends',
+        protocols: 'Protocol Patterns',
+        compound_interest: 'Compound Interest',
+        side_effects: 'Side Effect Patterns',
+        counterfeit: 'Product Verification'
+      }
       return {
-        category: trend.category === 'bloodwork' ? 'Bloodwork Trends' :
-                 trend.category === 'protocols' ? 'Protocol Patterns' :
-                 'Community Data',
+        category: categoryLabels[trend.category] || 'Community Data',
         insight,
         educational_note
       }

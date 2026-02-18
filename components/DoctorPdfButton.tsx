@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { FileText, Download, Crown, ArrowRight } from 'lucide-react'
@@ -13,9 +14,11 @@ interface DoctorPdfButtonProps {
   }
   analysisType: 'stack-explorer' | 'side-effects' | 'compounds' | 'bloodwork-analysis' | 'recovery-timeline' | 'progress-photos' | 'results-forecast' | 'telehealth-referral'
   onGenerate?: () => Promise<void>
+  /** Custom button label (default: "Generate Doctor Report (PDF)") */
+  buttonLabel?: string
 }
 
-export function DoctorPdfButton({ patientData, analysisType, onGenerate }: DoctorPdfButtonProps) {
+export function DoctorPdfButton({ patientData, analysisType, onGenerate, buttonLabel }: DoctorPdfButtonProps) {
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -40,8 +43,14 @@ export function DoctorPdfButton({ patientData, analysisType, onGenerate }: Docto
         })
 
         if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Failed to generate PDF')
+          let errorMsg = 'Failed to generate PDF'
+          try {
+            const errorData = await response.json()
+            errorMsg = errorData.error || errorMsg
+          } catch {
+            errorMsg = await response.text().catch(() => errorMsg) || errorMsg
+          }
+          throw new Error(errorMsg)
         }
 
         // Create download link for the PDF
@@ -79,7 +88,7 @@ export function DoctorPdfButton({ patientData, analysisType, onGenerate }: Docto
         ) : (
           <>
             <Download className="h-4 w-4" />
-            Generate Doctor Report (PDF)
+            {buttonLabel || 'Generate Doctor Report (PDF)'}
           </>
         )}
       </Button>
@@ -99,9 +108,11 @@ export function DoctorPdfButton({ patientData, analysisType, onGenerate }: Docto
         <p className="text-sm text-amber-800 dark:text-amber-200 mb-3">
           Unlock TRT optimization protocols & specialist referral packages
         </p>
-        <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white">
-          Upgrade to Elite
-          <ArrowRight className="h-4 w-4 ml-2" />
+        <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white" asChild>
+          <Link href="/subscription">
+            Upgrade to Elite
+            <ArrowRight className="h-4 w-4 ml-2" />
+          </Link>
         </Button>
       </div>
     </div>

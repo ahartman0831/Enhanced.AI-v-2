@@ -19,11 +19,16 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json()
-    const { imageUrl, productInfo, productType } = body
+    const { imageUrl, imageDataUrls, productInfo, productType } = body
 
-    if (!imageUrl) {
+    // Support both array of base64 data URLs and legacy single imageUrl
+    const images: string[] = Array.isArray(imageDataUrls) && imageDataUrls.length > 0
+      ? imageDataUrls.filter((u: unknown) => typeof u === 'string' && u.startsWith('data:'))
+      : imageUrl ? [imageUrl] : []
+
+    if (images.length === 0) {
       return NextResponse.json(
-        { error: 'Product image is required' },
+        { error: 'At least one product image is required' },
         { status: 400 }
       )
     }
@@ -48,16 +53,16 @@ export async function POST(request: NextRequest) {
 ## Product Information
 Product Type: ${productType || 'Not specified'}
 Additional Info: ${productInfo || 'No additional information provided'}
-Image URL: ${imageUrl}
+Images provided: ${images.length} photo(s)
 
-Please analyze this product image for authenticity indicators and provide the educational analysis in the specified JSON format.`
+Please analyze the product images for authenticity indicators and provide the educational analysis in the specified JSON format.`
 
     // Call Grok API for counterfeit analysis
     const grokResult = await callGrok({
       prompt: analysisPrompt,
       userId: user.id,
       feature: 'counterfeit-analysis',
-      imageUrls: [imageUrl]
+      imageUrls: images
     })
 
     if (!grokResult.success) {
@@ -77,7 +82,7 @@ Please analyze this product image for authenticity indicators and provide the ed
           analysisType: 'counterfeit-analysis',
           productType: productType,
           productInfo: productInfo,
-          imageUrl: imageUrl,
+          imageCount: images.length,
           analysis: grokResult.data
         },
         nutrition_impact: null

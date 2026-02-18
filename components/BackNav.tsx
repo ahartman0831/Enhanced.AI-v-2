@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { TierBadge } from '@/components/TierBadge'
 import { useUnsavedAnalysis } from '@/contexts/UnsavedAnalysisContext'
 
-const PROTECTED_ROUTES = ['/dashboard', '/stack-explorer', '/side-effects', '/compounds', '/onboarding', '/bloodwork-parser', '/bloodwork-history', '/progress-photos', '/results-forecaster', '/recovery-timeline', '/counterfeit-checker', '/telehealth-referral', '/profile', '/blood-panel-order']
+const PROTECTED_ROUTES = ['/dashboard', '/profile', '/subscription', '/stack-explorer', '/side-effects', '/compounds', '/onboarding', '/bloodwork-parser', '/bloodwork-history', '/progress-photos', '/results-forecaster', '/recovery-timeline', '/counterfeit-checker', '/telehealth-referral', '/blood-panel-order']
 
 const ORDER_BLOOD_TEST_ROUTES = ['/stack-explorer', '/side-effects', '/recovery-timeline', '/telehealth-referral', '/bloodwork-parser']
 

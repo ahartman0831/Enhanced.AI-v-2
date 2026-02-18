@@ -47,6 +47,12 @@ export async function GET(
       breakdownUpdatedAt > cacheCutoff
 
     if (cacheValid && compound.full_breakdown_json) {
+      // Record view for anonymized aggregation (fire-and-forget)
+      supabase
+        .from('compound_breakdown_views')
+        .insert({ user_id: user.id, compound_id: id })
+        .then(() => {})
+        .catch(() => {})
       return NextResponse.json(compound.full_breakdown_json)
     }
 
@@ -76,6 +82,13 @@ export async function GET(
         affected_systems: row.affected_systems,
       })
       .eq('id', id)
+
+    // Record view for anonymized aggregation (fire-and-forget)
+    supabase
+      .from('compound_breakdown_views')
+      .insert({ user_id: user.id, compound_id: id })
+      .then(() => {})
+      .catch(() => {})
 
     return NextResponse.json(breakdown)
   } catch (err) {

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,16 +13,18 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import {
   User,
-  Settings,
   Shield,
   Database,
   AlertTriangle,
   CheckCircle,
   Save,
   Eye,
-  EyeOff
+  Star,
+  Crown,
+  Award,
+  ArrowRight
 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useSubscriptionTier } from '@/hooks/useSubscriptionTier'
 
 interface ProfileData {
   age: number | null
@@ -46,7 +49,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const router = useRouter()
+  const { tier, isPaid, isElite, loading: tierLoading } = useSubscriptionTier()
 
   useEffect(() => {
     fetchProfile()
@@ -161,6 +164,59 @@ export default function ProfilePage() {
             <AlertDescription className="text-green-800 dark:text-green-200">{success}</AlertDescription>
           </Alert>
         )}
+
+        {/* Subscription Tier Card - click to manage */}
+        <Link href="/subscription">
+          <Card className="mb-8 border-cyan-500/20 bg-cyan-500/5 dark:bg-cyan-950/20 dark:border-cyan-800/50 hover:border-cyan-500/40 hover:bg-cyan-500/10 dark:hover:bg-cyan-950/30 transition-colors cursor-pointer">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Award className="h-5 w-5 text-cyan-500" />
+                Subscription Plan
+              </CardTitle>
+              <CardDescription>
+                Your current plan. Click to view tiers, features, pricing, and manage your subscription.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center gap-3">
+                {tierLoading ? (
+                  <div className="h-9 w-24 animate-pulse rounded-md bg-muted" />
+                ) : (
+                  <Badge
+                    variant="outline"
+                    className={
+                      tier === 'elite'
+                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 border-amber-400 dark:border-amber-600'
+                        : tier === 'paid'
+                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-blue-300 dark:border-blue-700'
+                          : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-300 dark:border-slate-600'
+                    }
+                  >
+                    {tier === 'elite' && <Crown className="h-3.5 w-3.5 mr-1" />}
+                    {tier === 'paid' && <Star className="h-3.5 w-3.5 mr-1" />}
+                    {tier === 'free' && '🆓'}
+                    {tier === 'elite' ? 'Elite' : tier === 'paid' ? 'Pro' : 'Free'}
+                  </Badge>
+                )}
+                <div className="text-sm text-muted-foreground">
+                  {tierLoading ? (
+                    <span className="animate-pulse">Loading...</span>
+                  ) : tier === 'elite' ? (
+                    'Full access to all features including doctor consultations and lab partnerships.'
+                  ) : tier === 'paid' ? (
+                    'Stack Explorer, bloodwork analysis, progress photos, and side effects monitoring.'
+                  ) : (
+                    'Basic compound database and educational content.'
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-cyan-600 dark:text-cyan-400">
+                View plans & manage
+                <ArrowRight className="h-4 w-4" />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Personal Information */}

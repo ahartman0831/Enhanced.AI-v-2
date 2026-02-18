@@ -22,7 +22,8 @@ import {
   User,
   Shield,
   Beaker,
-  BarChart3
+  BarChart3,
+  CreditCard
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useSupabase } from '@/hooks/useSupabase'
@@ -42,6 +43,7 @@ const navigation = [
   { name: 'Counterfeit Checker', href: '/counterfeit-checker', icon: Shield },
   { name: 'Telehealth Referral', href: '/telehealth-referral', icon: Stethoscope },
   { name: 'Profile', href: '/profile', icon: User },
+  { name: 'Subscription', href: '/subscription', icon: CreditCard },
 ]
 
 export function Sidebar() {

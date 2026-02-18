@@ -10,11 +10,12 @@ export function useSubscriptionTier() {
 
   useEffect(() => {
     let cancelled = false
-    fetch('/api/profile', { cache: 'no-store', credentials: 'include' })
+    // Use subscription API as canonical source for tier (profile may lag)
+    fetch('/api/subscription', { cache: 'no-store', credentials: 'include' })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (!cancelled && data?.subscription_tier != null) {
-          const t = String(data.subscription_tier).toLowerCase().trim()
+        if (!cancelled && data?.tier != null) {
+          const t = String(data.tier).toLowerCase().trim()
           if (t === 'elite') setTier('elite')
           else if (t === 'paid') setTier('paid')
           else setTier('free')

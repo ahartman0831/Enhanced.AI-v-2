@@ -26,7 +26,7 @@ Create a professional referral package formatted as clean text that includes:
 [Professional formatting of bloodwork data]
 
 ## Symptom Report
-[Formatted list of reported symptoms/concerns]
+[Formatted list of ALL reported symptoms and side effects from the patient. Include every item from sideEffectLogs.side_effects. List them strictly by name only – do NOT associate or group by compound. Do NOT attribute cause. The physician will determine cause. Simple bullet list format.]
 
 ## Educational Context
 This referral package contains information provided by the patient for educational purposes. All data should be verified and interpreted by qualified healthcare professionals. This package serves as a comprehensive information summary to facilitate informed telehealth consultations.

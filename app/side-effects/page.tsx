@@ -37,7 +37,9 @@ import {
   History,
   Shield,
   Trash2,
-  ExternalLink
+  ExternalLink,
+  BookOpen,
+  Calendar
 } from 'lucide-react'
 import { useUnsavedAnalysis } from '@/contexts/UnsavedAnalysisContext'
 import { TELEHEALTH_PARTNERS, getAffiliateDisclosure } from '@/lib/affiliates'
@@ -938,29 +940,49 @@ export default function SideEffectsPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Previous Analyses - shown when on form view */}
+        {/* Side Effects Diary - shown when on form view */}
         {!result && previousAnalyses.length > 0 && (
           <div className="mt-12 pt-8 border-t">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <History className="h-5 w-5" />
-              Previous Analyses
-            </h2>
-            <div className="space-y-3">
-              {previousAnalyses.map((log) => (
-                <Card key={log.id}>
-                  <CardHeader
-                    className="cursor-pointer hover:bg-muted/50 transition-colors py-4"
-                    onClick={() => setExpandedLogId(expandedLogId === log.id ? null : log.id)}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <CardTitle className="text-base">
-                          {log.compounds?.join(', ') || 'Unknown compounds'}
-                        </CardTitle>
-                        <CardDescription className="mt-1">
-                          Side effects: {log.side_effects?.join(', ') || '—'} • {formatDate(log.created_at)}
-                        </CardDescription>
-                      </div>
+            <div className="mb-6">
+              <h2 className="text-xl font-bold mb-2 flex items-center gap-2">
+                <BookOpen className="h-5 w-5" />
+                Side Effects Diary
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Your side effect entries over time. Each log is saved when you analyze — track patterns and share with your healthcare provider.
+              </p>
+            </div>
+            <div className="relative space-y-0">
+              {/* Timeline line */}
+              <div className="absolute left-4 top-2 bottom-2 w-px bg-border hidden sm:block" />
+              {previousAnalyses.map((log, idx) => (
+                <div key={log.id} className="relative flex gap-4 sm:gap-6 pb-6 last:pb-0">
+                  {/* Date badge - timeline node */}
+                  <div className="hidden sm:flex flex-col items-center shrink-0 w-20">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 border-2 border-primary/30 flex items-center justify-center z-10">
+                      <Calendar className="h-4 w-4 text-primary" />
+                    </div>
+                    <span className="text-xs text-muted-foreground mt-1 text-center">
+                      {formatDate(log.created_at)}
+                    </span>
+                  </div>
+                  <Card className="flex-1 min-w-0">
+                    <CardHeader
+                      className="cursor-pointer hover:bg-muted/50 transition-colors py-4 sm:py-4"
+                      onClick={() => setExpandedLogId(expandedLogId === log.id ? null : log.id)}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                            <span className="sm:hidden text-xs text-muted-foreground">{formatDate(log.created_at)}</span>
+                            <CardTitle className="text-base">
+                              {log.compounds?.join(', ') || 'Unknown compounds'}
+                            </CardTitle>
+                          </div>
+                          <CardDescription className="mt-1">
+                            Side effects: {log.side_effects?.join(', ') || '—'}
+                          </CardDescription>
+                        </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <Button
                           variant="ghost"
@@ -1046,6 +1068,7 @@ export default function SideEffectsPage() {
                     </CardContent>
                   )}
                 </Card>
+                </div>
               ))}
             </div>
           </div>

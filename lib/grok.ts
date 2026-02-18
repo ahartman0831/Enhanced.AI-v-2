@@ -5,6 +5,13 @@ import path from 'path'
 
 const GROK_API_BASE_URL = 'https://api.x.ai/v1'
 
+/**
+ * Future: web_search / view_image / x_keyword_search tools
+ * x.ai supports tools via /v1/responses (not chat/completions).
+ * To enable: switch to responses API, add tools: [{ type: 'web_search' }],
+ * and handle tool_calls in the response loop for iterative search + answer.
+ */
+
 export interface CallGrokOptions {
   prompt?: string
   promptName?: string
@@ -12,6 +19,10 @@ export interface CallGrokOptions {
   feature: string
   imageUrls?: string[]
   variables?: Record<string, string>
+  /** Use 'text' for long-form output (e.g. PDF content) to avoid JSON truncation; default 'json' */
+  responseFormat?: 'json' | 'text'
+  /** Max tokens for response (default from API); use 4096+ for long structured output */
+  maxTokens?: number
 }
 
 /**
@@ -51,7 +62,9 @@ export async function callGrok({
   userId,
   feature,
   imageUrls = [],
-  variables = {}
+  variables = {},
+  responseFormat = 'json',
+  maxTokens
 }: CallGrokOptions): Promise<CallGrokResult> {
   const apiKey = process.env.GROK_API_KEY
 
@@ -98,14 +111,19 @@ export async function callGrok({
     }
 
     // Make the API call to Grok (grok-4-1-fast-reasoning supports vision; longer timeout for reasoning models)
+    const requestBody: Record<string, unknown> = {
+      messages: [{ role: 'user', content: messageContent }],
+      model: 'grok-4-1-fast-reasoning',
+      temperature: 0.3,
+      ...(maxTokens != null && { max_tokens: maxTokens }),
+    }
+    if (responseFormat === 'json') {
+      requestBody.response_format = { type: 'json_object' }
+    }
+
     const response = await axios.post(
       `${GROK_API_BASE_URL}/chat/completions`,
-      {
-        messages: [{ role: 'user', content: messageContent }],
-        model: 'grok-4-1-fast-reasoning',
-        temperature: 0.3,
-        response_format: { type: 'json_object' },
-      },
+      requestBody,
       {
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -126,15 +144,19 @@ export async function callGrok({
       }
     }
 
-    // Parse the JSON response
+    // Parse the response (JSON or plain text)
     let parsedData: any
-    try {
-      parsedData = JSON.parse(content)
-    } catch (parseError) {
-      return {
-        success: false,
-        error: `Failed to parse JSON response: ${parseError}`,
-        tokensUsed
+    if (responseFormat === 'text') {
+      parsedData = content
+    } else {
+      try {
+        parsedData = JSON.parse(content)
+      } catch (parseError) {
+        return {
+          success: false,
+          error: `Failed to parse JSON response: ${parseError}`,
+          tokensUsed
+        }
       }
     }
 
