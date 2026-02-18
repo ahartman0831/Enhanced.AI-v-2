@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { PhotoUploader } from '@/components/PhotoUploader'
@@ -12,15 +12,24 @@ import { TimelineTagger } from '@/components/TimelineTagger'
 import { DoctorPdfButton } from '@/components/DoctorPdfButton'
 import { AlertTriangle } from 'lucide-react'
 
-interface PhotoAnalysisResult {
-  bodyComposition: {
-    generalObservations: string[]
-    symmetryAssessment: string
-    improvementAreas: string[]
-  }
-  monitoringRecommendations: string[]
-  educationalNotes: string
+interface PhotoMetadata {
+  currentWeight?: string
+  weightUnit?: 'lbs'
+  height?: string
+  heightUnit?: 'ft' | 'cm'
+  lighting?: string
+  pumpStatus?: string
+  trainingPhase?: string
+  supplementationPhase?: string
+  notes?: string
+  isFast?: boolean
+  recentWorkout?: boolean
+  wellHydrated?: boolean
 }
+
+// API returns simple format; VisionReportCard expects detailed format
+// We use a flexible type and let VisionReportCard handle both via optional chaining
+type PhotoAnalysisResult = Record<string, unknown>
 
 interface PhotoFile {
   file: File
@@ -34,7 +43,7 @@ export default function ProgressPhotosPage() {
     side?: PhotoFile
     back?: PhotoFile
   }>({})
-  const [metadata, setMetadata] = useState('')
+  const [metadata, setMetadata] = useState<PhotoMetadata>({})
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [result, setResult] = useState<PhotoAnalysisResult | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -49,26 +58,35 @@ export default function ProgressPhotosPage() {
     fileInputs[type].current?.click()
   }
 
-  const handleFileChange = (type: 'front' | 'side' | 'back', event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      const preview = URL.createObjectURL(file)
-      setPhotos(prev => ({
-        ...prev,
-        [type]: { file, preview, type }
-      }))
-    }
-  }
-
-  const removePhoto = (type: 'front' | 'side' | 'back') => {
-    if (photos[type]) {
-      URL.revokeObjectURL(photos[type]!.preview)
+  const handlePhotoChange = (type: 'front' | 'side' | 'back', photo: PhotoFile | undefined) => {
+    if (photo) {
+      setPhotos(prev => ({ ...prev, [type]: photo }))
+    } else {
+      if (photos[type]) {
+        URL.revokeObjectURL(photos[type]!.preview)
+      }
       setPhotos(prev => {
         const newPhotos = { ...prev }
         delete newPhotos[type]
         return newPhotos
       })
     }
+  }
+
+  const handleFileChange = (type: 'front' | 'side' | 'back', event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      const preview = URL.createObjectURL(file)
+      handlePhotoChange(type, { file, preview, type })
+    }
+  }
+
+  const removePhoto = (type: 'front' | 'side' | 'back') => {
+    handlePhotoChange(type, undefined)
+  }
+
+  const handleSaveTimelineEntry = (_entry: { date: string; category: string; title: string; description: string; tags: string[]; metrics?: object }) => {
+    // TODO: Save to API in real implementation
   }
 
   const uploadPhotoToStorage = async (photo: PhotoFile): Promise<string> => {
@@ -104,7 +122,7 @@ export default function ProgressPhotosPage() {
           frontUrl,
           sideUrl,
           backUrl,
-          metadata: metadata || undefined
+          metadata: Object.keys(metadata).length > 0 ? JSON.stringify(metadata) : undefined
         })
       })
 
@@ -127,6 +145,8 @@ export default function ProgressPhotosPage() {
     setResult(null)
     setError(null)
   }
+
+  const photoCount = [photos.front, photos.side, photos.back].filter(Boolean).length
 
   const photoTypes = [
     { key: 'front', label: 'Front View', description: 'Full body facing camera' },
@@ -194,7 +214,7 @@ export default function ProgressPhotosPage() {
           /* Results Display */
           <div className="space-y-8">
             {/* Vision Report Card Component */}
-            <VisionReportCard result={result} />
+            <VisionReportCard result={result as unknown as React.ComponentProps<typeof VisionReportCard>['result']} />
 
             {/* Timeline Tagger Component */}
             <TimelineTagger

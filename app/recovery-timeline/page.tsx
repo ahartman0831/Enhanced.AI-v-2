@@ -114,7 +114,7 @@ export default function RecoveryTimelinePage() {
   const generateTimelineData = (timeline: RecoveryTimelineResult['recoveryTimeline']) => {
     if (!timeline) return []
 
-    const data = []
+    const data: Array<{ week: number; phase: string; recoveryProgress: number; hormoneRecovery: number; testosterone: number; cortisol: number }> = []
     let weekCounter = 0
 
     timeline.forEach((phase, index) => {

@@ -11,7 +11,7 @@ interface DoctorPdfButtonProps {
     id: string
     analysis: any
   }
-  analysisType: 'stack-explorer' | 'side-effects' | 'compounds'
+  analysisType: 'stack-explorer' | 'side-effects' | 'compounds' | 'bloodwork-analysis' | 'recovery-timeline' | 'progress-photos' | 'results-forecast' | 'telehealth-referral'
   onGenerate?: () => Promise<void>
 }
 

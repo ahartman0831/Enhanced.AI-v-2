@@ -26,7 +26,7 @@ import { useRouter } from 'next/navigation'
 interface ProfileData {
   age: number | null
   sex: string | null
-  weight_kg: number | null
+  weight_lbs: number | null
   goals: string | null
   experience_level: string | null
   risk_tolerance: string | null
@@ -36,7 +36,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<ProfileData>({
     age: null,
     sex: null,
-    weight_kg: null,
+    weight_lbs: null,
     goals: null,
     experience_level: null,
     risk_tolerance: null
@@ -187,14 +187,14 @@ export default function ProfilePage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="weight">Weight (kg)</Label>
+                  <Label htmlFor="weight">Weight (lbs)</Label>
                   <Input
                     id="weight"
                     type="number"
                     step="0.1"
-                    value={profile.weight_kg || ''}
-                    onChange={(e) => handleProfileChange('weight_kg', e.target.value ? parseFloat(e.target.value) : null)}
-                    placeholder="Enter weight"
+                    value={profile.weight_lbs || ''}
+                    onChange={(e) => handleProfileChange('weight_lbs', e.target.value ? parseFloat(e.target.value) : null)}
+                    placeholder="Enter weight in lbs"
                   />
                 </div>
               </div>

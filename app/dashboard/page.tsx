@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CommunityInsightsCard } from '@/components/CommunityInsightsCard'
 import { CommunityRiskStoriesCard } from '@/components/CommunityRiskStoriesCard'
+import { BloodPanelUpsell } from '@/components/BloodPanelUpsell'
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
@@ -56,6 +57,7 @@ export default function DashboardPage() {
 
         <div className="grid gap-6 md:grid-cols-2">
           <CommunityInsightsCard className="md:col-span-2" />
+          <BloodPanelUpsell className="md:col-span-2" />
           <CommunityRiskStoriesCard className="md:col-span-2" />
         </div>
       </div>

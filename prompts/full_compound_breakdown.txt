@@ -7,6 +7,8 @@ Return ONLY valid JSON. Force the disclaimer as the very first field.
 {
   "disclaimer": "This is educational information based on scientific literature and patterns commonly discussed in bodybuilding communities. It is not medical advice, not a recommendation, and not a diagnosis. Always consult your physician and follow all applicable laws.",
 
+  "layman_summary": "A short paragraph (2-4 sentences) in plain language summarizing the key points below. Written for a non-scientist — what this compound does, main risks, and what to watch. No jargon.",
+
   "what_it_is": "Full scientific description (chemical class, mechanism of action, half-life, receptor binding, etc.)",
 
   "medical_uses": "Approved or historically used medical indications from clinical literature",

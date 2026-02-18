@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { createSupabaseBrowserClient } from '@/lib/supabase-client'
+import { useSubscriptionTier } from '@/hooks/useSubscriptionTier'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -38,8 +40,21 @@ import {
   Lightbulb,
   Sparkles,
   Crown,
-  Droplets
+  Droplets,
+  History,
+  FolderOpen,
+  Trash2,
+  Beaker,
+  ArrowRight
 } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
 
 interface CommonApproachDiscussed {
   base: string
@@ -51,7 +66,16 @@ interface CommonApproachDiscussed {
   nutrition_impact: string
 }
 
+interface InputMetadata {
+  goals?: string
+  experience?: string
+  riskTolerance?: string
+  bloodwork?: string
+}
+
 interface StackAnalysisResult {
+  report_name?: string
+  input_metadata?: InputMetadata
   disclaimer?: string
   common_approaches_discussed?: CommonApproachDiscussed[]
   commonApproaches?: Array<{
@@ -64,11 +88,13 @@ interface StackAnalysisResult {
     riskLevel: string
   }>
   nutrition_impact?: {
-    proteinConsiderations: string
-    calorieManagement: string
-    micronutrientFocus: string
-    timingStrategies: string
-    supplementSynergy: string
+    summary?: string
+    key_discussions?: string[]
+    proteinConsiderations?: string
+    calorieManagement?: string
+    micronutrientFocus?: string
+    timingStrategies?: string
+    supplementSynergy?: string
   }
   nutritionImpact?: {
     proteinConsiderations: string
@@ -141,10 +167,34 @@ export default function StackExplorerPage() {
   const [whatIfApproachIndex, setWhatIfApproachIndex] = useState(0)
   const [whatIfCompoundNames, setWhatIfCompoundNames] = useState<string[]>([])
 
-  const isElite = false // TODO: Implement tier checking from profile/subscription
-  const [showEliteUpsell, setShowEliteUpsell] = useState(false)
+  const { isPaid, isElite, loading: tierLoading } = useSubscriptionTier()
+  const [showPaidUpsell, setShowPaidUpsell] = useState(false)
+
+  const [savedReports, setSavedReports] = useState<Array<{ id: string; stack_json: StackAnalysisResult; created_at: string }>>([])
+  const [savedReportsLoading, setSavedReportsLoading] = useState(true)
+  const [currentReportId, setCurrentReportId] = useState<string | null>(null)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [reportToDelete, setReportToDelete] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const totalSteps = 4
+
+  useEffect(() => {
+    const fetchSavedReports = async () => {
+      try {
+        const res = await fetch('/api/stack-explorer/reports')
+        if (res.ok) {
+          const { reports } = await res.json()
+          setSavedReports(reports || [])
+        }
+      } catch {
+        // Ignore
+      } finally {
+        setSavedReportsLoading(false)
+      }
+    }
+    fetchSavedReports()
+  }, [result]) // Refetch when result changes (new report saved)
 
   const parseCompoundNames = (additions: string[] | undefined): string[] => {
     if (!additions?.length) return []
@@ -178,6 +228,7 @@ export default function StackExplorerPage() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to regenerate')
       setResult(data.data)
+      setCurrentReportId(data.protocolId ?? null)
     } catch (err: any) {
       setError(err.message || 'Failed to regenerate analysis')
     } finally {
@@ -224,6 +275,7 @@ export default function StackExplorerPage() {
       }
 
       setResult(data.data)
+      setCurrentReportId(data.protocolId ?? null)
       setCurrentStep(totalSteps + 1) // Show results
 
     } catch (err: any) {
@@ -246,12 +298,83 @@ export default function StackExplorerPage() {
   const resetForm = () => {
     setCurrentStep(1)
     setResult(null)
+    setCurrentReportId(null)
     setError(null)
     setGoals('')
     setCustomGoal('')
     setExperience('')
     setRiskTolerance('')
     setBloodwork('')
+  }
+
+  const loadSavedReport = (report: { id: string; stack_json: StackAnalysisResult }) => {
+    const meta = report.stack_json.input_metadata
+    if (meta) {
+      const storedGoals = meta.goals || ''
+      const isKnownGoal = GOALS_OPTIONS.includes(storedGoals)
+      setGoals(isKnownGoal ? storedGoals : (storedGoals ? 'Other' : ''))
+      setCustomGoal(isKnownGoal ? '' : storedGoals)
+      setExperience(meta.experience || '')
+      setRiskTolerance(meta.riskTolerance || '')
+      setBloodwork(meta.bloodwork || '')
+    }
+    setResult(report.stack_json)
+    setCurrentReportId(report.id)
+    setCurrentStep(totalSteps + 1)
+    setError(null)
+  }
+
+  const getReportTitle = (stackJson: StackAnalysisResult): string => {
+    if (stackJson.report_name?.trim()) {
+      return stackJson.report_name.length > 60 ? stackJson.report_name.slice(0, 57) + '...' : stackJson.report_name
+    }
+    const approaches = stackJson.common_approaches_discussed ?? stackJson.commonApproaches
+    if (approaches?.length) {
+      const first = approaches[0]
+      const base = typeof first === 'object' && first !== null && 'base' in first
+        ? (first as { base?: string }).base
+        : typeof first === 'object' && first !== null && 'name' in first
+          ? (first as { name?: string }).name
+          : null
+      if (base) {
+        return base.length > 60 ? base.slice(0, 57) + '...' : base
+      }
+    }
+    return 'Stack Analysis'
+  }
+
+  const formatReportDate = (dateStr: string) => {
+    const d = new Date(dateStr)
+    const now = new Date()
+    const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24))
+    if (diffDays === 0) return 'Today'
+    if (diffDays === 1) return 'Yesterday'
+    if (diffDays < 7) return `${diffDays} days ago`
+    return d.toLocaleDateString()
+  }
+
+  const openDeleteConfirm = (reportId: string) => {
+    setReportToDelete(reportId)
+    setDeleteConfirmOpen(true)
+  }
+
+  const handleDeleteReport = async () => {
+    if (!reportToDelete) return
+    setIsDeleting(true)
+    try {
+      const res = await fetch(`/api/stack-explorer/reports/${reportToDelete}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Failed to delete')
+      setSavedReports((prev) => prev.filter((r) => r.id !== reportToDelete))
+      setDeleteConfirmOpen(false)
+      setReportToDelete(null)
+      if (currentReportId === reportToDelete) {
+        resetForm()
+      }
+    } catch {
+      setError('Failed to delete report')
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   // Render form steps
@@ -412,13 +535,51 @@ export default function StackExplorerPage() {
 
     return (
       <div className="space-y-8">
-        {/* Elite Upsell for What If */}
-        {showEliteUpsell && (
+        {/* Saved Reports - compact when viewing results */}
+        {savedReports.length > 0 && (
+          <Card>
+            <CardHeader className="py-4">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <History className="h-4 w-4" />
+                {savedReports.length > 1 ? 'Switch to Another Report' : 'Saved Reports'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="flex flex-wrap gap-2">
+                {savedReports.map((report) => (
+                  <div key={report.id} className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => loadSavedReport(report)}
+                      className="text-xs h-auto py-1.5 px-2"
+                    >
+                      {getReportTitle(report.stack_json).slice(0, 30)}
+                      {getReportTitle(report.stack_json).length > 30 ? '...' : ''} · {formatReportDate(report.created_at)}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0 opacity-60 hover:opacity-100 hover:text-destructive"
+                      onClick={() => openDeleteConfirm(report.id)}
+                      aria-label="Delete report"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Paid tier upsell for What If (free users only) */}
+        {showPaidUpsell && !isPaid && (
           <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
             <Crown className="h-4 w-4" />
             <AlertDescription>
-              <strong>Elite Feature:</strong> Upgrade to Elite to unlock the What If Simulator — tweak one compound and regenerate risks, combos, and nutrition impact.
-              <Button variant="link" className="p-0 h-auto ml-2" onClick={() => setShowEliteUpsell(false)}>Dismiss</Button>
+              <strong>Paid Feature:</strong> Upgrade to a paid plan to unlock the What If Simulator — tweak one compound and regenerate risks, combos, and nutrition impact.
+              <Button variant="link" className="p-0 h-auto ml-2" onClick={() => setShowPaidUpsell(false)}>Dismiss</Button>
             </AlertDescription>
           </Alert>
         )}
@@ -455,18 +616,17 @@ export default function StackExplorerPage() {
                           size="sm"
                           className="shrink-0"
                           onClick={() => {
-                            if (isElite) {
-                              setWhatIfCompoundNames(compoundNames)
-                              setWhatIfApproachIndex(index)
+                            setWhatIfCompoundNames(compoundNames)
+                            setWhatIfApproachIndex(index)
+                            if (isPaid) {
                               setWhatIfOpen(true)
                             } else {
-                              setShowEliteUpsell(true)
+                              setShowPaidUpsell(true)
                             }
                           }}
                         >
                           <Sparkles className="h-4 w-4 mr-1" />
                           What if?
-                          {!isElite && <Crown className="h-3 w-3 ml-1 text-amber-500" />}
                         </Button>
                       )}
                     </div>
@@ -624,6 +784,17 @@ export default function StackExplorerPage() {
               <p className="mt-4 text-xs text-muted-foreground italic">
                 Educational only — discuss with physician before ordering or interpreting any bloodwork.
               </p>
+              <Link
+                href={`/blood-panel-order?markers=${encodeURIComponent(result.bloodwork_markers_to_monitor.map((m) => (typeof m === 'string' ? m : (m as { marker?: string }).marker ?? '')).filter(Boolean).join(','))}`}
+                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-amber-700 transition-colors"
+              >
+                <Beaker className="h-4 w-4" />
+                Order Blood Test
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Opens lab order screen with these markers pre-filled. You can add or remove markers before ordering.
+              </p>
             </CardContent>
           </Card>
         )}
@@ -634,8 +805,8 @@ export default function StackExplorerPage() {
             <h2 className="text-2xl font-bold mb-6">Compound Nutrition Impact</h2>
             <CompoundNutritionCard compound={{
               name: 'Nutrition Strategy Overview',
-              description: 'Educational overview of nutritional considerations',
-              benefits: [],
+              description: (nutritionImpact as { summary?: string }).summary || 'Educational overview of nutritional considerations',
+              benefits: (nutritionImpact as { key_discussions?: string[] }).key_discussions || [],
               risks: [],
               interactions: [],
               dosage: undefined
@@ -754,20 +925,21 @@ export default function StackExplorerPage() {
           isElite={isElite}
         />
 
-        {/* Personalized Supp Stack - Elite Feature */}
-        <PersonalizedSuppStack analysisType="stack-explorer" />
-
-        {/* Commonly Discussed Supports */}
+        {/* Commonly Discussed Supports - Elite tier-gated */}
         {supports && supports.length > 0 && (
           <CommonSupportsCard
             supports={supports}
             analysisType="stack-explorer"
-            isElite={false} // TODO: Implement tier checking
+            isElite={isElite}
           />
         )}
 
-            {/* PDF Button */}
-            <div className="flex justify-center">
+        {/* Potentially Helpful Supplements - pre-filled from analysis */}
+        <PersonalizedSuppStack analysisType="stack-explorer" supports={supports ?? undefined} />
+
+            {/* PDF & Save note */}
+            <div className="flex flex-col items-center gap-2">
+              <p className="text-xs text-muted-foreground">Report saved automatically</p>
               <DoctorPdfButton
                 patientData={{
                   name: 'Stack Analysis Report',
@@ -815,6 +987,59 @@ export default function StackExplorerPage() {
             <strong>Educational tool only. Not medical advice. Consult your physician.</strong> All analysis provided is for educational purposes only and should not be used as a substitute for professional medical advice, diagnosis, or treatment.
           </AlertDescription>
         </Alert>
+
+        {/* Saved Reports */}
+        {!savedReportsLoading && savedReports.length > 0 && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <History className="h-5 w-5" />
+                Saved Reports
+              </CardTitle>
+              <CardDescription>
+                Your previous stack analyses are saved automatically. Click to view.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {savedReports.map((report) => (
+                  <div
+                    key={report.id}
+                    className="flex items-center gap-2 p-3 rounded-lg border bg-muted/50 hover:bg-muted transition-colors group"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => loadSavedReport(report)}
+                      className="flex-1 flex items-center gap-3 min-w-0 text-left"
+                    >
+                      <FolderOpen className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm truncate">
+                          {getReportTitle(report.stack_json)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatReportDate(report.created_at)}
+                        </p>
+                      </div>
+                    </button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0 opacity-60 hover:opacity-100 hover:text-destructive"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openDeleteConfirm(report.id)
+                      }}
+                      aria-label="Delete report"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Progress Indicator */}
         {currentStep <= totalSteps && (
@@ -881,6 +1106,26 @@ export default function StackExplorerPage() {
             )}
           </div>
         )}
+
+        {/* Delete Report Confirmation */}
+        <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Report</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete this report? This cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)} disabled={isDeleting}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleDeleteReport} disabled={isDeleting}>
+                {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Delete'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   )

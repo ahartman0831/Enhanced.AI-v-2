@@ -3,17 +3,17 @@ import { createSupabaseServerClient } from '@/lib/supabase-server'
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createSupabaseServerClient()
+    const supabase = await createSupabaseServerClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get user's profile
+    // Get user's profile (explicit subscription_tier for tier-gating)
     const { data: profile, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select('*, subscription_tier')
       .eq('id', user.id)
       .single()
 
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = createSupabaseServerClient()
+    const supabase = await createSupabaseServerClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
@@ -39,7 +39,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { age, sex, weight_kg, goals, experience_level, risk_tolerance } = body
+    const { age, sex, weight_lbs, goals, experience_level, risk_tolerance } = body
 
     // Upsert profile
     const { data, error } = await supabase
@@ -48,7 +48,7 @@ export async function PUT(request: NextRequest) {
         id: user.id,
         age,
         sex,
-        weight_kg,
+        weight_lbs,
         goals,
         experience_level,
         risk_tolerance,

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -12,19 +12,53 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { cn } from '@/lib/utils'
 import { Beaker, Loader2, AlertTriangle, ExternalLink } from 'lucide-react'
 
 interface CompoundBreakdown {
   disclaimer?: string
+  layman_summary?: string
   what_it_is?: string
   medical_uses?: string
   bodybuilding_discussions?: string
-  risks_and_side_effects?: string
+  risks_and_side_effects?: string | Record<string, unknown>
   affected_systems?: string[]
-  monitoring_markers?: string[]
+  monitoring_markers?: (string | { marker?: string; why?: string })[]
   nutrition_impact?: string
   common_interactions?: string
   sources?: string[]
+}
+
+function renderBreakdownValue(value: string | Record<string, unknown> | undefined): ReactNode {
+  if (value == null) return null
+  if (typeof value === 'string') return value
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    return (
+      <div className="space-y-3">
+        {Object.entries(value).map(([key, val]) => (
+          <div key={key} className="space-y-1">
+            <span className="font-medium text-foreground">{key}</span>
+            <div className="text-muted-foreground text-sm">
+              {typeof val === 'string' ? (
+                val
+              ) : Array.isArray(val) ? (
+                <ul className="list-disc list-inside space-y-1">
+                  {val.map((item, i) => (
+                    <li key={i}>{typeof item === 'string' ? item : JSON.stringify(item)}</li>
+                  ))}
+                </ul>
+              ) : typeof val === 'object' && val !== null ? (
+                renderBreakdownValue(val as Record<string, unknown>)
+              ) : (
+                String(val)
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+  return String(value)
 }
 
 interface CompoundCardProps {
@@ -66,11 +100,11 @@ export function CompoundCard({ compound }: CompoundCardProps) {
   const handleCardClick = () => {
     fetchBreakdown()
   }
-  const getRiskBadgeVariant = (score: number) => {
-    if (score <= 3) return 'secondary' // Low risk
-    if (score <= 6) return 'outline'   // Medium risk
-    if (score <= 8) return 'destructive' // High risk
-    return 'destructive' // Very high risk
+  const getRiskBadgeStyles = (score: number) => {
+    if (score <= 3) return 'bg-emerald-500/90 text-emerald-950 border-emerald-400 dark:bg-emerald-500 dark:text-emerald-950 dark:border-emerald-400'
+    if (score <= 6) return 'bg-cyan-500/90 text-cyan-950 border-cyan-400 dark:bg-cyan-500 dark:text-cyan-950 dark:border-cyan-400'
+    if (score <= 8) return 'bg-amber-500/90 text-amber-950 border-amber-400 dark:bg-amber-500 dark:text-amber-950 dark:border-amber-400'
+    return 'bg-red-500/90 text-red-950 border-red-400 dark:bg-red-500 dark:text-red-950 dark:border-red-400'
   }
 
   const getRiskLabel = (score: number) => {
@@ -79,6 +113,17 @@ export function CompoundCard({ compound }: CompoundCardProps) {
     if (score <= 8) return 'High Risk'
     return 'Very High Risk'
   }
+
+  // Use breakdown data as fallback when DB hasn't been refetched (e.g. right after loading breakdown)
+  const displayMarkers = (): string[] => {
+    if (compound.key_monitoring_markers?.length) return compound.key_monitoring_markers
+    if (!breakdown?.monitoring_markers?.length) return []
+    return breakdown.monitoring_markers.map((m) =>
+      typeof m === 'string' ? m : (typeof m === 'object' && m !== null && 'marker' in m ? String((m as { marker?: string }).marker ?? '') : String(m))
+    ).filter(Boolean)
+  }
+
+  const markers = displayMarkers()
 
   return (
     <>
@@ -95,8 +140,8 @@ export function CompoundCard({ compound }: CompoundCardProps) {
             </CardDescription>
           </div>
           <Badge
-            variant={getRiskBadgeVariant(compound.risk_score)}
-            className="ml-2 shrink-0"
+            variant="outline"
+            className={cn('ml-2 shrink-0 border', getRiskBadgeStyles(compound.risk_score))}
           >
             {compound.risk_score}/10 - {getRiskLabel(compound.risk_score)}
           </Badge>
@@ -123,18 +168,20 @@ export function CompoundCard({ compound }: CompoundCardProps) {
           </div>
         )}
 
-        {compound.key_monitoring_markers && compound.key_monitoring_markers.length > 0 && (
-          <div>
-            <h4 className="font-semibold text-sm mb-2">Key Monitoring Markers</h4>
+        <div>
+          <h4 className="font-semibold text-sm mb-2">Key Monitoring Markers</h4>
+          {markers.length > 0 ? (
             <div className="flex flex-wrap gap-1">
-              {compound.key_monitoring_markers.map((marker, index) => (
+              {markers.map((marker, index) => (
                 <Badge key={index} variant="secondary" className="text-xs">
                   {marker}
                 </Badge>
               ))}
             </div>
-          </div>
-        )}
+          ) : (
+            <p className="text-sm text-muted-foreground italic">Bloodwork monitoring recommended — click for full breakdown</p>
+          )}
+        </div>
 
         {compound.nutrition_impact_summary && (
           <div>
@@ -187,35 +234,42 @@ export function CompoundCard({ compound }: CompoundCardProps) {
               {breakdown.disclaimer && (
                 <Alert className="border-amber-200 dark:border-amber-800">
                   <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription className="text-xs">{breakdown.disclaimer}</AlertDescription>
+                  <AlertDescription className="text-xs">{renderBreakdownValue(breakdown.disclaimer)}</AlertDescription>
                 </Alert>
+              )}
+
+              {breakdown.layman_summary && (
+                <div className="rounded-lg bg-muted/50 p-4 border">
+                  <h4 className="font-semibold mb-2">In Plain English</h4>
+                  <div className="text-sm text-muted-foreground">{renderBreakdownValue(breakdown.layman_summary)}</div>
+                </div>
               )}
 
               {breakdown.what_it_is && (
                 <div>
                   <h4 className="font-semibold mb-2">What It Is</h4>
-                  <p className="text-sm text-muted-foreground">{breakdown.what_it_is}</p>
+                  <div className="text-sm text-muted-foreground">{renderBreakdownValue(breakdown.what_it_is)}</div>
                 </div>
               )}
 
               {breakdown.medical_uses && (
                 <div>
                   <h4 className="font-semibold mb-2">Medical Uses</h4>
-                  <p className="text-sm text-muted-foreground">{breakdown.medical_uses}</p>
+                  <div className="text-sm text-muted-foreground">{renderBreakdownValue(breakdown.medical_uses)}</div>
                 </div>
               )}
 
               {breakdown.bodybuilding_discussions && (
                 <div>
                   <h4 className="font-semibold mb-2">Bodybuilding Discussions</h4>
-                  <p className="text-sm text-muted-foreground">{breakdown.bodybuilding_discussions}</p>
+                  <div className="text-sm text-muted-foreground">{renderBreakdownValue(breakdown.bodybuilding_discussions)}</div>
                 </div>
               )}
 
               {breakdown.risks_and_side_effects && (
                 <div>
                   <h4 className="font-semibold mb-2 text-destructive">Risks & Side Effects</h4>
-                  <p className="text-sm text-muted-foreground">{breakdown.risks_and_side_effects}</p>
+                  <div className="text-sm text-muted-foreground">{renderBreakdownValue(breakdown.risks_and_side_effects)}</div>
                 </div>
               )}
 
@@ -224,7 +278,7 @@ export function CompoundCard({ compound }: CompoundCardProps) {
                   <h4 className="font-semibold mb-2">Affected Systems</h4>
                   <div className="flex flex-wrap gap-1">
                     {breakdown.affected_systems.map((sys, idx) => (
-                      <Badge key={idx} variant="outline">{sys}</Badge>
+                      <Badge key={idx} variant="outline">{typeof sys === 'string' ? sys : String(sys)}</Badge>
                     ))}
                   </div>
                 </div>
@@ -235,7 +289,11 @@ export function CompoundCard({ compound }: CompoundCardProps) {
                   <h4 className="font-semibold mb-2">Monitoring Markers</h4>
                   <div className="flex flex-wrap gap-1">
                     {breakdown.monitoring_markers.map((m, idx) => (
-                      <Badge key={idx} variant="secondary">{m}</Badge>
+                      <Badge key={idx} variant="secondary">
+                        {typeof m === 'string' ? m : typeof m === 'object' && m !== null && 'marker' in m
+                          ? String((m as { marker?: string }).marker ?? JSON.stringify(m))
+                          : String(m)}
+                      </Badge>
                     ))}
                   </div>
                 </div>
@@ -244,14 +302,14 @@ export function CompoundCard({ compound }: CompoundCardProps) {
               {breakdown.nutrition_impact && (
                 <div>
                   <h4 className="font-semibold mb-2">Nutrition Impact</h4>
-                  <p className="text-sm text-muted-foreground">{breakdown.nutrition_impact}</p>
+                  <div className="text-sm text-muted-foreground">{renderBreakdownValue(breakdown.nutrition_impact)}</div>
                 </div>
               )}
 
               {breakdown.common_interactions && (
                 <div>
                   <h4 className="font-semibold mb-2">Common Interactions</h4>
-                  <p className="text-sm text-muted-foreground">{breakdown.common_interactions}</p>
+                  <div className="text-sm text-muted-foreground">{renderBreakdownValue(breakdown.common_interactions)}</div>
                 </div>
               )}
 
@@ -262,17 +320,20 @@ export function CompoundCard({ compound }: CompoundCardProps) {
                     Sources
                   </h4>
                   <ul className="text-sm text-muted-foreground space-y-1">
-                    {breakdown.sources.map((src, idx) => (
-                      <li key={idx}>
-                        {src.startsWith('http') ? (
-                          <a href={src} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                            {src}
-                          </a>
-                        ) : (
-                          src
-                        )}
-                      </li>
-                    ))}
+                    {breakdown.sources.map((src, idx) => {
+                      const str = typeof src === 'string' ? src : String(src)
+                      return (
+                        <li key={idx}>
+                          {str.startsWith('http') ? (
+                            <a href={str} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                              {str}
+                            </a>
+                          ) : (
+                            str
+                          )}
+                        </li>
+                      )
+                    })}
                   </ul>
                 </div>
               )}

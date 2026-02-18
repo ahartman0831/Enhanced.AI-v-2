@@ -1,5 +1,6 @@
 -- Insert 20 common compounds with educational information
 -- Note: This data is for educational purposes only and does not include dosage information
+-- ON CONFLICT skips compounds that already exist (idempotent)
 
 INSERT INTO compounds (name, category, common_uses, risk_score, affected_systems, key_monitoring_markers, nutrition_impact_summary) VALUES
 ('Testosterone', 'Anabolic Steroid', 'Muscle building, strength enhancement, hormone replacement therapy', 7, ARRAY['Endocrine', 'Cardiovascular', 'Hepatic', 'Reproductive'], ARRAY['Total Testosterone', 'Free Testosterone', 'SHBG', 'Estradiol', 'LH', 'FSH', 'HDL', 'LDL', 'Liver Enzymes'], 'May increase protein synthesis and nitrogen retention, potentially affecting calcium metabolism and bone health. Users should monitor zinc and magnesium intake for hormonal support.'),
@@ -40,4 +41,5 @@ INSERT INTO compounds (name, category, common_uses, risk_score, affected_systems
 
 ('Nolvadex', 'SERMs', 'Estrogen control, PCT, gyno prevention', 3, ARRAY['Endocrine', 'Reproductive', 'Vision'], ARRAY['Estrogen', 'Testosterone', 'LH', 'FSH', 'Vision Markers'], 'Selective estrogen receptor modulator used for hormonal balance. May support natural testosterone production during recovery periods.'),
 
-('Arimidex', 'AI', 'Estrogen control, estrogen management', 5, ARRAY['Endocrine', 'Skeletal', 'Cardiovascular'], ARRAY['Estrogen', 'Testosterone', 'Bone Markers', 'Cholesterol'], 'Aromatase inhibitor that reduces estrogen production. May affect bone health and lipid profiles while requiring careful estrogen monitoring.');
+('Arimidex', 'AI', 'Estrogen control, estrogen management', 5, ARRAY['Endocrine', 'Skeletal', 'Cardiovascular'], ARRAY['Estrogen', 'Testosterone', 'Bone Markers', 'Cholesterol'], 'Aromatase inhibitor that reduces estrogen production. May affect bone health and lipid profiles while requiring careful estrogen monitoring.')
+ON CONFLICT (name) DO NOTHING;

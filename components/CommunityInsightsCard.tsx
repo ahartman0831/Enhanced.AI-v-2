@@ -17,6 +17,7 @@ interface Insight {
 
 interface CommunityData {
   insights: Insight[]
+  layman_summary?: string
 }
 
 export function CommunityInsightsCard({ className }: CommunityInsightsCardProps) {
@@ -116,6 +117,15 @@ export function CommunityInsightsCard({ className }: CommunityInsightsCardProps)
                 </p>
               </div>
             ))}
+
+            {data.layman_summary && (
+              <div className="pt-3 mt-3 border-t p-3 rounded-lg bg-muted/50 border">
+                <p className="text-xs font-medium text-foreground mb-1">In plain terms</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {data.layman_summary}
+                </p>
+              </div>
+            )}
 
             <div className="pt-2 border-t">
               <Badge variant="outline" className="text-xs">

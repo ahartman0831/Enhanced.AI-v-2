@@ -7,7 +7,7 @@ import path from 'path'
 export async function POST(request: NextRequest) {
   try {
     // Authenticate user
-    const supabase = createSupabaseServerClient()
+    const supabase = await createSupabaseServerClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
@@ -17,26 +17,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get user's latest protocol, bloodwork, and photos
+    // Get user's latest protocol, bloodwork, and photos (maybeSingle = no error when 0 rows)
     const [latestProtocol, latestBloodwork, latestPhotos] = await Promise.all([
       supabase.from('enhanced_protocols')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single(),
+        .maybeSingle(),
       supabase.from('bloodwork_reports')
         .select('*')
         .eq('user_id', user.id)
         .order('report_date', { ascending: false })
         .limit(1)
-        .single(),
+        .maybeSingle(),
       supabase.from('photo_reports')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single()
+        .maybeSingle()
     ])
 
     // Load results forecast prompt template
@@ -55,9 +55,9 @@ export async function POST(request: NextRequest) {
 
     // Prepare comprehensive data for forecasting
     const forecastData = {
-      currentProtocol: latestProtocol.data || null,
-      currentBloodwork: latestBloodwork.data || null,
-      currentPhotos: latestPhotos.data || null,
+      currentProtocol: latestProtocol.data ?? null,
+      currentBloodwork: latestBloodwork.data ?? null,
+      currentPhotos: latestPhotos.data ?? null,
       analysisDate: new Date().toISOString()
     }
 
@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (!grokResult.success) {
+      console.error('Grok forecast error:', grokResult.error)
       return NextResponse.json(
         { error: grokResult.error || 'Failed to generate forecast' },
         { status: 500 }
@@ -108,16 +109,17 @@ export async function POST(request: NextRequest) {
       forecastId: forecastRecord?.id,
       tokensUsed: grokResult.tokensUsed,
       basedOn: {
-        protocolId: latestProtocol.data?.id,
-        bloodworkId: latestBloodwork.data?.id,
-        photosId: latestPhotos.data?.id
+        protocolId: forecastData.currentProtocol?.id,
+        bloodworkId: forecastData.currentBloodwork?.id,
+        photosId: forecastData.currentPhotos?.id
       }
     })
 
-  } catch (error) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error'
     console.error('Results forecast API error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: message },
       { status: 500 }
     )
   }

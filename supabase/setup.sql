@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
   age INTEGER,
   sex TEXT,
-  weight_kg FLOAT,
+  weight_lbs FLOAT,
   goals TEXT,
   experience_level TEXT,
   risk_tolerance TEXT,

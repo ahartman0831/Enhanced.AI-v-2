@@ -7,7 +7,7 @@ import { Slider } from '@/components/ui/slider'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
-  Compare,
+  GitCompareArrows,
   Calendar,
   TrendingUp,
   AlertTriangle,
@@ -72,7 +72,7 @@ export function ComparisonViewer({ currentPhotos, previousEntries = [] }: Compar
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Compare className="h-5 w-5" />
+            <GitCompareArrows className="h-5 w-5" />
             Progress Comparison
           </CardTitle>
           <CardDescription>
@@ -96,7 +96,7 @@ export function ComparisonViewer({ currentPhotos, previousEntries = [] }: Compar
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Compare className="h-5 w-5" />
+          <GitCompareArrows className="h-5 w-5" />
           Progress Comparison
         </CardTitle>
         <CardDescription>

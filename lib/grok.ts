@@ -56,6 +56,7 @@ export async function callGrok({
   const apiKey = process.env.GROK_API_KEY
 
   if (!apiKey) {
+    console.log('[Grok] Skipped (no API key):', { feature, userId })
     return {
       success: false,
       error: 'GROK_API_KEY environment variable is not set'
@@ -70,6 +71,7 @@ export async function callGrok({
     }
 
     if (!finalPrompt) {
+      console.log('[Grok] Skipped (no prompt):', { feature, userId })
       return {
         success: false,
         error: 'No prompt provided'
@@ -79,26 +81,28 @@ export async function callGrok({
     // Replace variables in prompt
     finalPrompt = replaceVariables(finalPrompt, variables)
 
+    console.log('[Grok] Called:', { feature, userId, promptLength: finalPrompt?.length, hasImages: imageUrls.length > 0 })
+
     // Prepare the message content
     let messageContent: any = finalPrompt
 
-    // If there are images, structure the content as an array
+    // If there are images, structure the content as an array (x.ai chat completions vision format)
     if (imageUrls.length > 0) {
       messageContent = [
         { type: 'text', text: finalPrompt },
-        ...imageUrls.map(url => ({
+        ...imageUrls.map((url: string) => ({
           type: 'image_url',
-          image_url: { url }
+          image_url: { url, detail: 'high' as const }
         }))
       ]
     }
 
-    // Make the API call to Grok
+    // Make the API call to Grok (grok-4-1-fast-reasoning supports vision; longer timeout for reasoning models)
     const response = await axios.post(
       `${GROK_API_BASE_URL}/chat/completions`,
       {
         messages: [{ role: 'user', content: messageContent }],
-        model: 'grok-fast-reasoning-4',
+        model: 'grok-4-1-fast-reasoning',
         temperature: 0.3,
         response_format: { type: 'json_object' },
       },
@@ -107,6 +111,7 @@ export async function callGrok({
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
+        timeout: imageUrls.length > 0 ? 120000 : 60000, // 2 min for vision, 1 min for text
       }
     )
 
@@ -135,7 +140,7 @@ export async function callGrok({
 
     // Log token usage to Supabase (server-side context)
     try {
-      const supabase = createSupabaseServerClient()
+      const supabase = await createSupabaseServerClient()
       await supabase.from('token_usage_log').insert({
         user_id: userId,
         feature_name: feature,
@@ -145,6 +150,8 @@ export async function callGrok({
       console.error('Failed to log token usage:', dbError)
       // Don't fail the entire operation if logging fails
     }
+
+    console.log('[Grok] Success:', { feature, userId, tokensUsed })
 
     return {
       success: true,
@@ -166,6 +173,8 @@ export async function callGrok({
       // Other error
       errorMessage = error.message || 'Unknown error'
     }
+
+    console.log('[Grok] Error:', { feature, userId, error: errorMessage })
 
     return {
       success: false,

@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react'
+import { Logo } from '@/components/Logo'
 
 function LoginForm() {
   const [email, setEmail] = useState('')
@@ -43,6 +44,7 @@ function LoginForm() {
           password,
         })
         if (error) throw error
+        router.refresh()
         router.push(`/onboarding?redirectTo=${encodeURIComponent(redirectTo)}`)
       }
     } catch (error: any) {
@@ -53,8 +55,13 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground p-4">
+      <div className="w-full max-w-md flex flex-col items-center mb-8">
+        <div className="h-40 w-56 sm:h-48 sm:w-64 flex items-center justify-center">
+          <Logo size="fill" showText={false} className="h-full w-full" />
+        </div>
+      </div>
+      <Card className="w-full max-w-md border-border bg-card border-cyan-500/10">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl text-center">
             {isSignUp ? 'Create Account' : 'Welcome Back'}
@@ -117,7 +124,7 @@ function LoginForm() {
               </Alert>
             )}
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full bg-cyan-600 hover:bg-cyan-700" disabled={isLoading}>
               {isLoading
                 ? (isSignUp ? 'Creating Account...' : 'Signing In...')
                 : (isSignUp ? 'Create Account' : 'Sign In')

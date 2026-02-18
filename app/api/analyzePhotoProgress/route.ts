@@ -5,7 +5,7 @@ import { callGrok } from '@/lib/grok'
 export async function POST(request: NextRequest) {
   try {
     // Authenticate user
-    const supabase = createSupabaseServerClient()
+    const supabase = await createSupabaseServerClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {

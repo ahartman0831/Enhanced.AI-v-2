@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { createSupabaseBrowserClient } from '@/lib/supabase-client'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,10 +9,20 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { CompoundNutritionCard } from '@/components/CompoundNutritionCard'
 import { DoctorPdfButton } from '@/components/DoctorPdfButton'
+import { SideEffectsCompoundInput } from '@/components/SideEffectsCompoundInput'
 import { PersonalizedSuppStack } from '@/components/PersonalizedSuppStack'
 import { CommonSupportsCard } from '@/components/CommonSupportsCard'
+import { useSubscriptionTier } from '@/hooks/useSubscriptionTier'
 import {
   AlertTriangle,
   Plus,
@@ -21,14 +30,17 @@ import {
   Loader2,
   CheckCircle,
   Activity,
-  Pill
+  Pill,
+  ArrowLeft,
+  ChevronDown,
+  ChevronUp,
+  History,
+  Shield,
+  Trash2,
+  ExternalLink
 } from 'lucide-react'
-
-interface Compound {
-  id: string
-  name: string
-  category: string
-}
+import { useUnsavedAnalysis } from '@/contexts/UnsavedAnalysisContext'
+import { TELEHEALTH_PARTNERS, getAffiliateDisclosure } from '@/lib/affiliates'
 
 interface SideEffectAnalysisResult {
   compoundAnalysis: Array<{
@@ -52,17 +64,50 @@ interface SideEffectAnalysisResult {
   }
   monitoringProtocol: string[]
   educationalNotes: string
+  harmReductionObservations?: string[]
+  harmReductionPlainLanguage?: string
   commonlyDiscussedSupports?: Array<{
     name: string
     common_purpose: string
     affected_system: string
     amazon_affiliate_link?: string
+    partnership_note?: string
   }>
 }
+
+interface SideEffectLog {
+  id: string
+  compounds: string[]
+  dosages: string | null
+  side_effects: string[]
+  analysis_result: SideEffectAnalysisResult | null
+  created_at: string
+}
+
+const DOSAGE_UNITS = ['mg', 'mcg', 'iu', 'g', 'ml', 'units', 'other'] as const
+const DOSAGE_FREQUENCIES = [
+  { value: 'daily', label: 'Daily' },
+  { value: 'twice_daily', label: 'Twice daily' },
+  { value: 'eod', label: 'EOD (every other day)' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'twice_weekly', label: 'Twice weekly' },
+  { value: 'every_3_days', label: 'Every 3 days' },
+  { value: 'other', label: 'Other' },
+] as const
+
+const DOSAGE_ROUTES = [
+  { value: 'im', label: 'Intramuscular (IM)' },
+  { value: 'subq', label: 'Subcutaneous (Sub-Q)' },
+  { value: 'oral', label: 'Oral' },
+  { value: 'transdermal', label: 'Transdermal' },
+  { value: 'nasal', label: 'Nasal' },
+  { value: 'other', label: 'Other' },
+] as const
 
 const COMMON_SIDE_EFFECTS = [
   'Hair Loss',
   'Gynecomastia (Gyno)',
+  'Nipple Pain / Sensitivity / Itching',
   'Insomnia',
   'Acne',
   'Lethargy/Fatigue',
@@ -74,59 +119,117 @@ const COMMON_SIDE_EFFECTS = [
   'Nausea',
   'Appetite Changes',
   'Testicle Shrinkage',
+  'Testicle Pain',
   'Erectile Dysfunction',
+  'Libido Changes',
   'Increased Aggression',
   'Water Retention',
   'Liver Strain',
   'Cholesterol Changes',
   'Sleep Apnea',
+  'Injection Site Pain (PIP)',
+  'Anxiety',
+  'Depression',
   'Other'
 ]
 
 export default function SideEffectsPage() {
-  const [compounds, setCompounds] = useState<Compound[]>([])
+  const { isElite } = useSubscriptionTier()
+  const unsaved = useUnsavedAnalysis()
   const [selectedCompounds, setSelectedCompounds] = useState<string[]>([])
   const [selectedSideEffects, setSelectedSideEffects] = useState<string[]>([])
   const [customSideEffect, setCustomSideEffect] = useState('')
-  const [dosages, setDosages] = useState('')
+  const [compoundDosages, setCompoundDosages] = useState<Record<string, { amount: string; unit: string; frequency: string; route: string }>>({})
+  const [dosageNotes, setDosageNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [result, setResult] = useState<SideEffectAnalysisResult | null>(null)
+  const [analysisId, setAnalysisId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false)
+  const [previousAnalyses, setPreviousAnalyses] = useState<SideEffectLog[]>([])
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  const supabase = createSupabaseBrowserClient()
-
-  // Fetch compounds on component mount
-  useEffect(() => {
-    async function fetchCompounds() {
-      try {
-        const { data, error } = await supabase
-          .from('compounds')
-          .select('id, name, category')
-          .order('name')
-
-        if (error) throw error
-
-        setCompounds(data || [])
-      } catch (err) {
-        console.error('Error fetching compounds:', err)
-        setError('Failed to load compounds database')
-      } finally {
-        setLoading(false)
+  const fetchPreviousAnalyses = useCallback(async () => {
+    try {
+      const res = await fetch('/api/side-effects')
+      if (res.ok) {
+        const { data } = await res.json()
+        setPreviousAnalyses(data ?? [])
       }
+    } catch {
+      // Ignore fetch errors
     }
+  }, [])
 
-    fetchCompounds()
-  }, [supabase])
+  useEffect(() => {
+    fetchPreviousAnalyses()
+  }, [fetchPreviousAnalyses])
 
-  const addCompound = (compoundId: string) => {
-    if (!selectedCompounds.includes(compoundId)) {
-      setSelectedCompounds([...selectedCompounds, compoundId])
+  // Register unsaved state and navigate-away handler when viewing analysis results
+  useEffect(() => {
+    if (result) {
+      unsaved?.setHasUnsavedSideEffectAnalysis(true)
+      unsaved?.registerNavigateAwayHandler(() => setSaveDialogOpen(true))
+    }
+    return () => {
+      unsaved?.unregisterNavigateAwayHandler()
+    }
+  }, [result, unsaved])
+
+  // Prompt on tab close / refresh
+  useEffect(() => {
+    if (!result) return
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [result])
+
+  const addCompound = (name: string) => {
+    if (name && !selectedCompounds.includes(name)) {
+      setSelectedCompounds([...selectedCompounds, name])
+      setCompoundDosages((prev) => ({ ...prev, [name]: { amount: '', unit: 'mg', frequency: 'weekly', route: 'im' } }))
     }
   }
 
-  const removeCompound = (compoundId: string) => {
-    setSelectedCompounds(selectedCompounds.filter(id => id !== compoundId))
+  const removeCompound = (name: string) => {
+    setSelectedCompounds(selectedCompounds.filter((n) => n !== name))
+    setCompoundDosages((prev) => {
+      const next = { ...prev }
+      delete next[name]
+      return next
+    })
+  }
+
+  const updateCompoundDosage = (name: string, field: 'amount' | 'unit' | 'frequency' | 'route', value: string) => {
+    setCompoundDosages((prev) => ({
+      ...prev,
+      [name]: { ...prev[name], [field]: value },
+    }))
+  }
+
+  const buildDosagesString = (): string => {
+    const parts: string[] = []
+    selectedCompounds.forEach((name) => {
+      const d = compoundDosages[name]
+      if (!d) return
+      const amount = d.amount.trim()
+      const unit = d.unit && d.unit !== 'other' ? d.unit : ''
+      const freqLabel = DOSAGE_FREQUENCIES.find((f) => f.value === d.frequency)?.label ?? d.frequency
+      const routeLabel = DOSAGE_ROUTES.find((r) => r.value === d.route)?.label ?? d.route
+      if (amount) {
+        const unitStr = unit ? ` ${unit}` : ''
+        parts.push(`${name}: ${amount}${unitStr} ${freqLabel} (${routeLabel})`.replace(/\s+/g, ' ').trim())
+      } else {
+        parts.push(`${name}: (not specified)${routeLabel ? ` — ${routeLabel}` : ''}`)
+      }
+    })
+    if (dosageNotes.trim()) {
+      parts.push(`Additional notes: ${dosageNotes.trim()}`)
+    }
+    return parts.join('. ')
   }
 
   const addSideEffect = (effect: string) => {
@@ -158,20 +261,14 @@ export default function SideEffectsPage() {
     }
 
     try {
-      // Get compound names for the API call
-      const compoundNames = selectedCompounds.map(id => {
-        const compound = compounds.find(c => c.id === id)
-        return compound?.name || id
-      })
-
       const response = await fetch('/api/side-effects', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          compounds: compoundNames,
-          dosages,
+          compounds: selectedCompounds,
+          dosages: buildDosagesString(),
           sideEffects: selectedSideEffects
         })
       })
@@ -183,6 +280,8 @@ export default function SideEffectsPage() {
       }
 
       setResult(data.data)
+      setAnalysisId(data.analysisId ?? null)
+      fetchPreviousAnalyses()
 
     } catch (err: any) {
       setError(err.message || 'An error occurred while analyzing side effects')
@@ -195,20 +294,64 @@ export default function SideEffectsPage() {
     setSelectedCompounds([])
     setSelectedSideEffects([])
     setCustomSideEffect('')
-    setDosages('')
+    setCompoundDosages({})
+    setDosageNotes('')
     setResult(null)
+    setAnalysisId(null)
     setError(null)
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading side effects analyzer...</p>
-        </div>
-      </div>
-    )
+  const handleBackClick = () => {
+    setSaveDialogOpen(true)
+  }
+
+  const handleSaveAndReturn = () => {
+    setSaveDialogOpen(false)
+    unsaved?.setHasUnsavedSideEffectAnalysis(false)
+    resetForm()
+    fetchPreviousAnalyses()
+  }
+
+  const handleDontSave = async () => {
+    setSaveDialogOpen(false)
+    unsaved?.setHasUnsavedSideEffectAnalysis(false)
+    if (analysisId) {
+      try {
+        await fetch(`/api/side-effects/${analysisId}`, { method: 'DELETE' })
+      } catch {
+        // Ignore delete errors
+      }
+    }
+    resetForm()
+    fetchPreviousAnalyses()
+  }
+
+  const handleDeleteAnalysis = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!confirm('Delete this saved analysis? This cannot be undone.')) return
+    setDeletingId(id)
+    try {
+      const res = await fetch(`/api/side-effects/${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        setPreviousAnalyses((prev) => prev.filter((log) => log.id !== id))
+        if (expandedLogId === id) setExpandedLogId(null)
+      }
+    } catch {
+      // Ignore
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr)
+    return d.toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    })
   }
 
   return (
@@ -233,76 +376,128 @@ export default function SideEffectsPage() {
         {!result ? (
           /* Form */
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Compound Selection */}
+            {/* Compounds & Dosages - integrated */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Pill className="h-5 w-5" />
-                  Select Compounds
+                  Select Compounds & Dosages
                 </CardTitle>
                 <CardDescription>
-                  Choose the compounds you're currently using or considering
+                  Add compounds below. For each compound, enter amount, unit, frequency, and route of administration.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label>Add Compound</Label>
-                  <Select onValueChange={addCompound}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a compound..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {compounds
-                        .filter(c => !selectedCompounds.includes(c.id))
-                        .map((compound) => (
-                          <SelectItem key={compound.id} value={compound.id}>
-                            {compound.name} ({compound.category})
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                  <SideEffectsCompoundInput
+                    onAdd={addCompound}
+                    existingNames={selectedCompounds}
+                    disabled={isSubmitting}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Type to search the database or enter any compound name. Custom substances are allowed and will be flagged for extra disclaimers.
+                  </p>
                 </div>
 
                 {selectedCompounds.length > 0 && (
-                  <div className="space-y-2">
-                    <Label>Selected Compounds</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedCompounds.map((compoundId) => {
-                        const compound = compounds.find(c => c.id === compoundId)
-                        return compound ? (
-                          <Badge key={compoundId} variant="secondary" className="flex items-center gap-1">
-                            {compound.name}
-                            <button
-                              type="button"
-                              onClick={() => removeCompound(compoundId)}
-                              className="ml-1 hover:text-destructive"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        ) : null
+                  <>
+                    <div className="space-y-3 pt-2 border-t">
+                      <Label className="text-base font-semibold">Dosages (Optional)</Label>
+                      <p className="text-xs text-muted-foreground -mt-1">
+                        Enter amount, unit, frequency, and method of administration for each compound.
+                      </p>
+                      {selectedCompounds.map((name) => {
+                        const d = compoundDosages[name] ?? { amount: '', unit: 'mg', frequency: 'weekly', route: 'im' }
+                        return (
+                          <div key={name} className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-foreground">{name}</span>
+                              <button
+                                type="button"
+                                onClick={() => removeCompound(name)}
+                                className="text-muted-foreground hover:text-destructive p-1"
+                                aria-label={`Remove ${name}`}
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                              <div className="space-y-1.5">
+                                <Label className="text-xs">Amount</Label>
+                                <Input
+                                  type="text"
+                                  inputMode="decimal"
+                                  placeholder="e.g. 250"
+                                  value={d.amount}
+                                  onChange={(e) => updateCompoundDosage(name, 'amount', e.target.value)}
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label className="text-xs">Unit</Label>
+                                <Select value={d.unit} onValueChange={(v) => updateCompoundDosage(name, 'unit', v)}>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {DOSAGE_UNITS.map((u) => (
+                                      <SelectItem key={u} value={u}>
+                                        {u}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label className="text-xs">Frequency</Label>
+                                <Select value={d.frequency} onValueChange={(v) => updateCompoundDosage(name, 'frequency', v)}>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {DOSAGE_FREQUENCIES.map((f) => (
+                                      <SelectItem key={f.value} value={f.value}>
+                                        {f.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label className="text-xs">Route</Label>
+                                <Select value={d.route} onValueChange={(v) => updateCompoundDosage(name, 'route', v)}>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Route" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {DOSAGE_ROUTES.map((r) => (
+                                      <SelectItem key={r.value} value={r.value}>
+                                        {r.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                          </div>
+                        )
                       })}
                     </div>
-                  </div>
+                    <div className="space-y-2 pt-2">
+                      <Label>Additional dosage or timing notes</Label>
+                      <Textarea
+                        placeholder="e.g. Split doses AM/PM, taken with food, etc."
+                        value={dosageNotes}
+                        onChange={(e) => setDosageNotes(e.target.value)}
+                        rows={2}
+                        className="resize-none"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Make sure everything is listed for the most accurate analysis. Leave amount blank if unknown.
+                    </p>
+                  </>
                 )}
-              </CardContent>
-            </Card>
-
-            {/* Dosages */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Dosages (Optional)</CardTitle>
-                <CardDescription>
-                  Describe your current dosages or planned usage
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Textarea
-                  placeholder="Example: Testosterone 100mg/week, Trenbolone 50mg/week, etc."
-                  value={dosages}
-                  onChange={(e) => setDosages(e.target.value)}
-                  rows={4}
-                />
               </CardContent>
             </Card>
 
@@ -321,19 +516,26 @@ export default function SideEffectsPage() {
                 <div className="space-y-2">
                   <Label>Common Side Effects</Label>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {COMMON_SIDE_EFFECTS.filter(effect => !selectedSideEffects.includes(effect)).map((effect) => (
-                      <Button
-                        key={effect}
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => addSideEffect(effect)}
-                        className="justify-start text-left h-auto py-2 px-3"
-                      >
-                        <Plus className="h-3 w-3 mr-2" />
-                        {effect}
-                      </Button>
-                    ))}
+                    {COMMON_SIDE_EFFECTS.map((effect) => {
+                      const isSelected = selectedSideEffects.includes(effect)
+                      return (
+                        <Button
+                          key={effect}
+                          type="button"
+                          variant={isSelected ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => isSelected ? removeSideEffect(effect) : addSideEffect(effect)}
+                          className="justify-start text-left h-auto py-2 px-3"
+                        >
+                          {isSelected ? (
+                            <CheckCircle className="h-3 w-3 mr-2" />
+                          ) : (
+                            <Plus className="h-3 w-3 mr-2" />
+                          )}
+                          {effect}
+                        </Button>
+                      )
+                    })}
                   </div>
                 </div>
 
@@ -411,6 +613,62 @@ export default function SideEffectsPage() {
                 <strong>Educational Analysis Only:</strong> This analysis explores potential mechanisms and commonly discussed management strategies. Individual responses vary significantly. This is not medical advice - consult qualified healthcare professionals for personalized guidance.
               </AlertDescription>
             </Alert>
+
+            {/* Community Insights on Hormone Patterns */}
+            {result.harmReductionObservations && result.harmReductionObservations.length > 0 && (
+              <details className="group rounded-lg border-2 border-cyan-200 dark:border-cyan-800 bg-cyan-50/50 dark:bg-cyan-950/20 overflow-hidden">
+                <summary className="flex items-center gap-3 cursor-pointer p-4 hover:bg-cyan-100/50 dark:hover:bg-cyan-900/20 transition-colors list-none">
+                  <Shield className="h-5 w-5 text-cyan-600 flex-shrink-0" />
+                  <span className="font-semibold text-cyan-900 dark:text-cyan-100">
+                    Community Insights on Hormone Patterns
+                  </span>
+                  <ChevronDown className="h-4 w-4 text-cyan-600 ml-auto group-open:rotate-180 transition-transform" />
+                </summary>
+                <div className="px-4 pb-4 pt-0 space-y-2">
+                  {result.harmReductionObservations.map((obs, idx) => (
+                    <p key={idx} className="text-sm text-muted-foreground pl-8">
+                      • {obs}
+                    </p>
+                  ))}
+                  {result.harmReductionPlainLanguage && (
+                    <div className="mt-4 pl-8 p-3 rounded-lg bg-cyan-100/50 dark:bg-cyan-900/30 border border-cyan-200 dark:border-cyan-800">
+                      <p className="text-xs font-medium text-cyan-900 dark:text-cyan-100 mb-1">In plain terms</p>
+                      <p className="text-sm text-cyan-800 dark:text-cyan-200">
+                        {result.harmReductionPlainLanguage}
+                      </p>
+                    </div>
+                  )}
+                  <div className="mt-4 pl-8 flex flex-wrap gap-2 items-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-cyan-700 dark:text-cyan-300 border-cyan-300 dark:border-cyan-700 hover:bg-cyan-100 dark:hover:bg-cyan-900/40"
+                      asChild
+                    >
+                      <a href={TELEHEALTH_PARTNERS.quest} target="_blank" rel="noopener noreferrer">
+                        Quest Diagnostics <ExternalLink className="h-3 w-3 ml-1 inline" />
+                      </a>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-cyan-700 dark:text-cyan-300 border-cyan-300 dark:border-cyan-700 hover:bg-cyan-100 dark:hover:bg-cyan-900/40"
+                      asChild
+                    >
+                      <a href={TELEHEALTH_PARTNERS.letsGetChecked} target="_blank" rel="noopener noreferrer">
+                        LetsGetChecked <ExternalLink className="h-3 w-3 ml-1 inline" />
+                      </a>
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground pl-8 pt-1">
+                    {getAffiliateDisclosure()}
+                  </p>
+                  <p className="text-xs text-muted-foreground pl-8 pt-2 italic">
+                    These are general educational observations from community patterns and literature. Individual responses vary significantly. Always consult a qualified healthcare professional.
+                  </p>
+                </div>
+              </details>
+            )}
 
             {/* Compound Analysis */}
             {result.compoundAnalysis && result.compoundAnalysis.length > 0 && (
@@ -585,21 +843,24 @@ export default function SideEffectsPage() {
               </div>
             )}
 
-            {/* Monitoring Protocol */}
+            {/* Monitoring Protocol - prominent for harm reduction */}
             {result.monitoringProtocol && result.monitoringProtocol.length > 0 && (
-              <Card>
+              <Card className="border-2 border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-950/20">
                 <CardHeader>
-                  <CardTitle>Monitoring Recommendations</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-green-600" />
+                    Monitoring Recommendations
+                  </CardTitle>
                   <CardDescription>
-                    Educational suggestions for tracking and safety monitoring
+                    Educational suggestions for tracking and safety monitoring. Communities repeatedly recommend bloodwork and physician oversight.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ul className="space-y-2">
+                  <ul className="space-y-3">
                     {result.monitoringProtocol.map((recommendation, index) => (
                       <li key={index} className="flex items-start gap-2">
                         <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                        <span className="text-sm">{recommendation}</span>
+                        <span className="text-sm font-medium">{recommendation}</span>
                       </li>
                     ))}
                   </ul>
@@ -615,17 +876,17 @@ export default function SideEffectsPage() {
               </Alert>
             )}
 
-        {/* Personalized Supp Stack - Elite Feature */}
-        <PersonalizedSuppStack analysisType="side-effects" />
-
-        {/* Commonly Discussed Supports */}
+        {/* Commonly Discussed Supports - Elite tier-gated */}
         {result.commonlyDiscussedSupports && result.commonlyDiscussedSupports.length > 0 && (
           <CommonSupportsCard
             supports={result.commonlyDiscussedSupports}
             analysisType="side-effects"
-            isElite={false} // TODO: Implement tier checking
+            isElite={isElite}
           />
         )}
+
+        {/* Potentially Helpful Supplements - pre-filled from analysis */}
+        <PersonalizedSuppStack analysisType="side-effects" supports={result.commonlyDiscussedSupports} />
 
             {/* PDF Button */}
             <div className="flex justify-center">
@@ -639,11 +900,153 @@ export default function SideEffectsPage() {
               />
             </div>
 
-            {/* Analyze Again Button */}
+            {/* Footer disclaimer */}
+            <Alert className="border-muted">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="text-sm">
+                These are general educational observations from community patterns and literature. Individual responses vary significantly. Always consult a qualified healthcare professional.
+              </AlertDescription>
+            </Alert>
+
+            {/* Back Button */}
             <div className="flex justify-center">
-              <Button onClick={resetForm} variant="outline">
-                Analyze Different Side Effects
+              <Button onClick={handleBackClick} variant="outline">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Side Effects
               </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Save confirmation dialog */}
+        <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+          <DialogContent hideCloseButton={false}>
+            <DialogHeader>
+              <DialogTitle>Save your analysis?</DialogTitle>
+              <DialogDescription>
+                Would you like to save this analysis to your history before returning? You can view saved analyses at the bottom of the Side Effects page.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={handleDontSave}>
+                Don&apos;t Save
+              </Button>
+              <Button onClick={handleSaveAndReturn}>
+                Save & Return
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Previous Analyses - shown when on form view */}
+        {!result && previousAnalyses.length > 0 && (
+          <div className="mt-12 pt-8 border-t">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <History className="h-5 w-5" />
+              Previous Analyses
+            </h2>
+            <div className="space-y-3">
+              {previousAnalyses.map((log) => (
+                <Card key={log.id}>
+                  <CardHeader
+                    className="cursor-pointer hover:bg-muted/50 transition-colors py-4"
+                    onClick={() => setExpandedLogId(expandedLogId === log.id ? null : log.id)}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="text-base">
+                          {log.compounds?.join(', ') || 'Unknown compounds'}
+                        </CardTitle>
+                        <CardDescription className="mt-1">
+                          Side effects: {log.side_effects?.join(', ') || '—'} • {formatDate(log.created_at)}
+                        </CardDescription>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={(e) => handleDeleteAnalysis(log.id, e)}
+                          disabled={deletingId === log.id}
+                          aria-label="Delete analysis"
+                        >
+                          {deletingId === log.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                        {expandedLogId === log.id ? (
+                          <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                        )}
+                      </div>
+                    </div>
+                  </CardHeader>
+                  {expandedLogId === log.id && log.analysis_result && (
+                    <CardContent className="pt-0 space-y-4 border-t">
+                      {log.analysis_result.harmReductionObservations && log.analysis_result.harmReductionObservations.length > 0 && (
+                        <div className="rounded-lg border border-cyan-200 dark:border-cyan-800 bg-cyan-50/50 dark:bg-cyan-950/20 p-3">
+                          <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                            <Shield className="h-4 w-4 text-cyan-600" />
+                            Community Insights on Hormone Patterns
+                          </h4>
+                          <ul className="text-sm text-muted-foreground space-y-1">
+                            {log.analysis_result.harmReductionObservations.slice(0, 3).map((obs, i) => (
+                              <li key={i}>• {obs}</li>
+                            ))}
+                          </ul>
+                          {log.analysis_result.harmReductionPlainLanguage && (
+                            <div className="mt-3 p-2 rounded bg-cyan-100/50 dark:bg-cyan-900/30 border border-cyan-200 dark:border-cyan-800">
+                              <p className="text-xs font-medium text-cyan-900 dark:text-cyan-100 mb-0.5">In plain terms</p>
+                              <p className="text-sm text-cyan-800 dark:text-cyan-200">{log.analysis_result.harmReductionPlainLanguage}</p>
+                            </div>
+                          )}
+                          <div className="mt-3 flex flex-wrap gap-1">
+                            <Button variant="outline" size="sm" className="text-xs h-7" asChild>
+                              <a href={TELEHEALTH_PARTNERS.quest} target="_blank" rel="noopener noreferrer">Quest</a>
+                            </Button>
+                            <Button variant="outline" size="sm" className="text-xs h-7" asChild>
+                              <a href={TELEHEALTH_PARTNERS.letsGetChecked} target="_blank" rel="noopener noreferrer">LetsGetChecked</a>
+                            </Button>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground mt-2 italic">
+                            General educational observations. Individual responses vary. Consult a healthcare professional.
+                          </p>
+                        </div>
+                      )}
+                      {log.analysis_result.compoundAnalysis?.map((analysis, idx) => (
+                        <div key={idx} className="rounded-lg border p-4">
+                          <h4 className="font-semibold mb-2">{analysis.compoundName}</h4>
+                          <p className="text-sm text-muted-foreground mb-2">
+                            Reported: {analysis.reportedEffects?.join(', ')}
+                          </p>
+                          {analysis.potentialMechanisms?.length > 0 && (
+                            <ul className="text-sm space-y-1 mb-2">
+                              {analysis.potentialMechanisms.slice(0, 2).map((m, i) => (
+                                <li key={i}>• {m}</li>
+                              ))}
+                            </ul>
+                          )}
+                          {analysis.commonManagement?.length > 0 && (
+                            <ul className="text-sm space-y-1 text-green-600 dark:text-green-400">
+                              {analysis.commonManagement.slice(0, 2).map((m, i) => (
+                                <li key={i}>• {m}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      ))}
+                      {log.analysis_result.educationalNotes && (
+                        <p className="text-sm text-muted-foreground italic">
+                          {log.analysis_result.educationalNotes}
+                        </p>
+                      )}
+                    </CardContent>
+                  )}
+                </Card>
+              ))}
             </div>
           </div>
         )}

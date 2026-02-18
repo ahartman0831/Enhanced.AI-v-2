@@ -99,13 +99,10 @@ function CompoundsContent() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Compound Database</h1>
-          <p className="text-muted-foreground">
-            Explore detailed information about vitamins, supplements, and medications.
-            {compounds.length > 0 && (
-              <span className="ml-2 text-sm">
-                ({filteredCompounds.length} of {compounds.length} compounds)
-              </span>
-            )}
+          <p className="text-muted-foreground max-w-2xl">
+            Your one-stop reference for understanding compound effects, risks, and monitoring—from vitamins to advanced compounds.
+            Filter by category or risk score, search by name, and tap any card for the full scientific breakdown.
+            No dosages here (we&apos;re educational, not prescriptive)—just the intel you need for informed conversations with your healthcare team.
           </p>
         </div>
 
@@ -129,6 +126,45 @@ function CompoundsContent() {
           onRiskMaxChange={setRiskMax}
           categories={categories}
         />
+
+        {/* About This Database - right below search/filter */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>About This Database</CardTitle>
+            <CardDescription>
+              Educational resource for understanding compound properties and effects
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <h4 className="font-semibold mb-2">Risk Score Legend:</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-emerald-500 rounded border border-emerald-400"></div>
+                  <span>1-3: Low Risk</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-cyan-500 rounded border border-cyan-400"></div>
+                  <span>4-6: Medium Risk</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-amber-500 rounded border border-amber-400"></div>
+                  <span>7-8: High Risk</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-red-500 rounded border border-red-400"></div>
+                  <span>9-10: Very High Risk</span>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-sm text-muted-foreground">
+              This database is updated regularly with educational information. Risk scores are relative indicators
+              and should not be used as the sole basis for decision-making. Always consult healthcare professionals
+              for personalized medical advice.
+            </p>
+          </CardContent>
+        </Card>
 
         {/* Loading State */}
         {loading && (
@@ -169,46 +205,6 @@ function CompoundsContent() {
           </>
         )}
 
-        {/* Footer Info */}
-        {!loading && compounds.length > 0 && (
-          <Card className="mt-8">
-            <CardHeader>
-              <CardTitle>About This Database</CardTitle>
-              <CardDescription>
-                Educational resource for understanding compound properties and effects
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h4 className="font-semibold mb-2">Risk Score Legend:</h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-secondary rounded"></div>
-                    <span>1-3: Low Risk</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 border rounded"></div>
-                    <span>4-6: Medium Risk</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-destructive rounded"></div>
-                    <span>7-8: High Risk</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-destructive rounded"></div>
-                    <span>9-10: Very High Risk</span>
-                  </div>
-                </div>
-              </div>
-
-              <p className="text-sm text-muted-foreground">
-                This database is updated regularly with educational information. Risk scores are relative indicators
-                and should not be used as the sole basis for decision-making. Always consult healthcare professionals
-                for personalized medical advice.
-              </p>
-            </CardContent>
-          </Card>
-        )}
       </div>
     </div>
   )

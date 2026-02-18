@@ -3,12 +3,12 @@ import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { callGrok } from '@/lib/grok'
 import fs from 'fs'
 import path from 'path'
-import { PDFDocument, rgb } from 'pdf-lib'
+import { PDFDocument, rgb, degrees } from 'pdf-lib'
 
 export async function POST(request: NextRequest) {
   try {
     // Authenticate user
-    const supabase = createSupabaseServerClient()
+    const supabase = await createSupabaseServerClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
       size: 60,
       color: rgb(0.9, 0.9, 0.9),
       opacity: 0.3,
-      rotate: Math.PI / 6 // 30 degrees rotation
+      rotate: degrees(30)
     })
 
     page.drawText('NOT MEDICAL ADVICE', {
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
       size: 40,
       color: rgb(0.9, 0.9, 0.9),
       opacity: 0.2,
-      rotate: Math.PI / 6
+      rotate: degrees(30)
     })
 
     // Add header
@@ -241,7 +241,7 @@ export async function POST(request: NextRequest) {
     const pdfBytes = await pdfDoc.save()
 
     // Return PDF as downloadable file
-    return new NextResponse(pdfBytes, {
+    return new NextResponse(Buffer.from(pdfBytes), {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="${patientData.name.replace(/[^a-zA-Z0-9]/g, '_')}_medical_summary.pdf"`,

@@ -34,6 +34,8 @@ const SUPPLEMENT_ASINS: { [key: string]: string } = {
   'Fenugreek': 'B07P9QJQ5X', // NOW Foods Fenugreek
   'Tribulus Terrestris': 'B000GGK0AC', // NOW Foods Tribulus
   'Maca Root': 'B07P9QJQ5Y', // NOW Foods Maca
+  'DIM': 'B006KL4TYG', // DIM for estrogen metabolism
+  'Vitamin B6': 'B0013OUPJ0', // B6 for prolactin
 
   // Recovery supports
   'Glutamine': 'B000GGK0AE', // NOW Foods Glutamine
@@ -89,6 +91,24 @@ export function getAvailableSupplements(): string[] {
 export function generateSearchAffiliateLink(searchTerm: string): string {
   const encodedTerm = encodeURIComponent(searchTerm.replace(/\s+/g, ' '))
   return `https://${AMAZON_DOMAIN}/s?k=${encodedTerm}&tag=${AMAZON_ASSOCIATE_TAG}`
+}
+
+/**
+ * Telehealth & lab partner URLs (affiliate links when available)
+ * Set env vars for actual affiliate URLs: HIMS_AFFILIATE_URL, HAPPY_HEAD_AFFILIATE_URL, QUEST_AFFILIATE_URL, LETSGETCHECKED_AFFILIATE_URL
+ */
+export const TELEHEALTH_PARTNERS = {
+  hims: process.env.NEXT_PUBLIC_HIMS_AFFILIATE_URL || 'https://www.forhims.com/',
+  happyHead: process.env.NEXT_PUBLIC_HAPPY_HEAD_AFFILIATE_URL || 'https://happyhead.com/',
+  quest: process.env.NEXT_PUBLIC_QUEST_AFFILIATE_URL || 'https://www.questdiagnostics.com/',
+  letsGetChecked: process.env.NEXT_PUBLIC_LETSGETCHECKED_AFFILIATE_URL || 'https://www.letsgetchecked.com/',
+} as const
+
+/**
+ * Get CTA link for a partner type (used in partnership_note parsing)
+ */
+export function getPartnerLink(partner: keyof typeof TELEHEALTH_PARTNERS): string {
+  return TELEHEALTH_PARTNERS[partner]
 }
 
 /**

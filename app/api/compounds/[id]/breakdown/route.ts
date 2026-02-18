@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { createSupabaseAdminClient } from '@/lib/supabase-admin'
 import { callGrok } from '@/lib/grok'
+import { parseBreakdownForDb } from '@/lib/compound-breakdown'
 
 const CACHE_DAYS = 30
 
@@ -63,13 +64,16 @@ export async function GET(
       )
     }
 
-    const breakdown = grokResult.data
+    const breakdown = grokResult.data as Record<string, unknown>
+    const row = parseBreakdownForDb(breakdown, compound.name)
 
     await admin
       .from('compounds')
       .update({
         full_breakdown_json: breakdown,
         breakdown_updated_at: now.toISOString(),
+        key_monitoring_markers: row.key_monitoring_markers,
+        affected_systems: row.affected_systems,
       })
       .eq('id', id)
 

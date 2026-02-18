@@ -10,7 +10,7 @@ import { Info } from 'lucide-react'
 
 interface PhotoMetadata {
   currentWeight?: string
-  weightUnit?: 'lbs' | 'kg'
+  weightUnit?: 'lbs'
   height?: string
   heightUnit?: 'ft' | 'cm'
   lighting?: string
@@ -54,28 +54,15 @@ export function PhotoMetaForm({ metadata, onMetadataChange }: PhotoMetaFormProps
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="weight">Current Weight</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="weight"
-                  type="number"
-                  placeholder="150"
-                  value={metadata.currentWeight || ''}
-                  onChange={(e) => updateMetadata('currentWeight', e.target.value)}
-                />
-                <Select
-                  value={metadata.weightUnit || 'lbs'}
-                  onValueChange={(value: 'lbs' | 'kg') => updateMetadata('weightUnit', value)}
-                >
-                  <SelectTrigger className="w-20">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="lbs">lbs</SelectItem>
-                    <SelectItem value="kg">kg</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <Label htmlFor="weight">Current Weight (lbs)</Label>
+              <Input
+                id="weight"
+                type="number"
+                step="0.1"
+                placeholder="150"
+                value={metadata.currentWeight || ''}
+                onChange={(e) => updateMetadata('currentWeight', e.target.value)}
+              />
             </div>
 
             <div className="space-y-2">

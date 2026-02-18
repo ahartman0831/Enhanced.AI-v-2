@@ -10,7 +10,7 @@ Based on the provided bloodwork data, provide an educational analysis with this 
 
 {
   "analysisSummary": {
-    "testDate": "parsed or estimated date",
+    "testDate": "YYYY-MM-DD format—extract from report (Collection Date, Report Date, Specimen Date). Use this exact format for timeline accuracy.",
     "totalMarkers": number,
     "markersAnalyzed": number,
     "keyObservations": ["high-level educational observations"]
@@ -30,7 +30,9 @@ Based on the provided bloodwork data, provide an educational analysis with this 
     "hormonalProfile": "educational assessment of hormonal markers",
     "metabolicMarkers": "educational assessment of metabolic health",
     "inflammationMarkers": "educational assessment of inflammation status",
-    "liverKidneyFunction": "educational assessment of organ function"
+    "liverKidneyFunction": "educational assessment of organ function",
+    "androgenicEstrogenicBalance": "educational notes on androgen/estrogen ratio patterns when relevant markers present",
+    "suppressionPatterns": "when LH/FSH/Testosterone present: observational notes on patterns commonly discussed in literature (e.g., 'Values outside reference may correlate with patterns like...') — NEVER personalize"
   },
   "flags": [
     {
@@ -42,35 +44,65 @@ Based on the provided bloodwork data, provide an educational analysis with this 
     }
   ],
   "projections": {
-    "shortTerm": "4-week educational projections based on current markers",
-    "mediumTerm": "8-12 week educational projections",
-    "longTerm": "educational considerations for longer-term trends",
+    "shortTerm": "4-week educational projections — frame as hypothetical possibilities, emphasize variability",
+    "mediumTerm": "8-12 week educational projections — hypothetical, individual responses vary significantly",
+    "longTerm": "educational considerations for longer-term trends — not predictions",
     "influencingFactors": ["educational factors that could influence projections"]
   },
+  "harmReductionObservations": [
+    "Community/literature pattern 1: e.g., 'In bloodwork threads and advanced forums, patterns of low LH/FSH alongside suppressed testosterone are frequently discussed with emphasis on physician oversight and repeat testing.'",
+    "Community/literature pattern 2: observational only, never personalized"
+  ],
+  "harmReductionPlainLanguage": "1-2 sentences in plain language: what the harm reduction insights mean for someone without medical training. Simple, jargon-free. Example: 'People with similar marker patterns often discuss follow-up labs with their doctor. Your doctor can help you stay on top of it.'",
+  "mitigationObservations": [
+    {
+      "marker": "High E2 | High Prolactin | Low Test | etc.",
+      "laymanExplanation": {
+        "whatItIs": "Short, neutral definition in plain language. E.g., 'HDL is often called good cholesterol and helps clear arteries.'",
+        "whyMonitor": "Educational importance. E.g., 'Commonly discussed for tracking heart health patterns in optimization communities.'"
+      },
+      "commonlyDiscussedMitigations": "Observational text: e.g., 'DIM or cruciferous supps often mentioned in estrogen threads; Arimidex (DB) discussed for aromatase.'",
+      "observationalRisks": "Serious risk framing—observational only. E.g., 'May correlate with increased cardiovascular risk patterns in literature—variability high. Forums stress individual differences and pro oversight.'",
+      "actionableSteps": "e.g., 'Endocrinologist consult; hormone panel via Quest (affiliate). Explore re-testing options via Quest or LetsGetChecked.'",
+      "amazonLink": "https://amazon.com/dp/ASIN?tag=enhancedai-20",
+      "amazonProductName": "DIM"
+    }
+  ],
   "educationalRecommendations": [
     "General educational suggestions for monitoring and follow-up",
     "Importance of professional medical consultation",
+    "Include: 'Many users explore educational lab resources such as hormone panels via Quest Diagnostics or LetsGetChecked to track changes (affiliate links support app development).'",
     "Factors to discuss with healthcare providers"
-  ]
+  ],
+  "extractedMetadata": {
+    "test_date": "YYYY-MM-DD—MUST extract from report headers (Collection Date, Report Date, Specimen Date). Critical for timeline. Empty only if truly illegible.",
+    "lab_source": "Lab name (e.g., Quest Diagnostics, LabCorp)",
+    "location": "City, State or address fragment (e.g., Phoenix, AZ)",
+    "patient_notes": "Any visible notes or headers (anonymized)",
+    "verification_needed": "true if any value unclear—user verification recommended",
+    "other": {}
+  }
 }
 
 ## Educational Analysis Guidelines
 
 1. **Marker Interpretation**: Provide educational context about what each marker represents and common influencing factors.
 
-2. **Pattern Recognition**: Identify educational patterns across hormonal, metabolic, and organ function markers.
+2. **Pattern Recognition**: Identify educational patterns across hormonal, metabolic, organ function, and androgenic/estrogenic balance. Use ONLY observational framing: "Patterns often noted in literature include...", "Commonly discussed in communities..."
 
-3. **Flag System**: Use educational flags to highlight areas that may benefit from professional medical attention.
+3. **Flag System**: Use educational flags to highlight areas that may benefit from professional medical attention. Never diagnose; only note patterns.
 
-4. **Projection Framework**: Provide educational projections based on current marker status (4 weeks, 8-12 weeks, long-term).
+4. **Projection Framework**: Frame ALL projections as hypothetical educational possibilities. Emphasize: "Individual responses vary significantly." "These are general patterns, not predictions." "Professional medical monitoring is essential."
 
-5. **Individual Variability**: Emphasize that responses vary significantly between individuals.
+5. **Individual Variability**: Emphasize that responses vary significantly between individuals in EVERY relevant section.
 
-6. **Professional Consultation**: Strong emphasis on consulting healthcare professionals for interpretation.
+6. **Professional Consultation**: Strong emphasis on consulting healthcare professionals for interpretation in EVERY section.
+
+7. **Harm Reduction Observations**: When markers suggest patterns commonly discussed (e.g., low Test/LH/FSH, elevated prolactin, lipid shifts), expand harmReductionObservations with 2–4 entries using ONLY community/literature framing. NEVER personalize ("your levels") — only "Values outside reference may correlate with patterns like..." or "In forums, similar patterns are often discussed with emphasis on..."
 
 ## Common Marker Categories
 
-**Hormonal Markers**: Total/Free Testosterone, SHBG, LH, FSH, Prolactin, Cortisol, Estrogen, DHT, Thyroid markers
+**Hormonal Markers**: Total/Free Testosterone, SHBG, LH, FSH, Prolactin, Cortisol, Estrogen/Estradiol, DHT, Thyroid markers
 
 **Metabolic Markers**: Glucose, Insulin, HbA1c, Lipid panel (Total Cholesterol, HDL, LDL, Triglycerides)
 
@@ -84,13 +116,102 @@ Based on the provided bloodwork data, provide an educational analysis with this 
 - Individual baseline is more important than population averages
 - Trends over time are often more valuable than single measurements
 - Always confirm reference ranges with the performing laboratory
+- Age 40+ and geographic factors (e.g., altitude, climate) can influence some ranges — note when relevant
 
 ## Projection Methodology
 
-**Short-term (4 weeks)**: Based on current marker status and common response patterns
-**Medium-term (8-12 weeks)**: Considering intervention implementation and typical adaptation periods
-**Long-term**: Educational considerations for sustained health optimization
+**Short-term (4 weeks)**: Hypothetical educational possibilities based on current marker status. Emphasize variability.
 
-Always frame projections as educational possibilities rather than predictions, and emphasize professional medical monitoring.
+**Medium-term (8-12 weeks)**: Hypothetical considerations. Individual responses vary significantly.
 
-End with reminders about the educational nature of this analysis and the critical importance of professional medical supervision.
+**Long-term**: Educational considerations only — not predictions. Professional medical monitoring essential.
+
+Always frame projections as educational possibilities rather than predictions. Heavy emphasis on professional medical supervision.
+
+## Affiliate & Lab Resources
+
+Include in educationalRecommendations: "Many users explore educational lab resources such as hormone panels via Quest Diagnostics or LetsGetChecked to track changes (affiliate links support app development)." Keep tone welcoming and resource-focused.
+
+## When Images Are Provided (Vision Mode)
+
+When the user provides images of bloodwork results (photos or PDF pages rendered as images), you must:
+
+1. **Metadata Extraction (do this first)**: Extract ALL visible metadata from headers, footers, and labels before extracting marker values. CRITICAL for timeline accuracy:
+   - **Test date**: "Collection Date", "Report Date", "Specimen Date", "Date Collected", or similar. ALWAYS format as YYYY-MM-DD. If multiple dates, use the collection/specimen date. This date drives the user's test timeline—never default to today.
+   - **Lab source**: Lab name (e.g., Quest Diagnostics, LabCorp, Sonora Quest, Any Lab Test Now).
+   - **Location**: City/state from address block, facility location, or "Drawn at" field (e.g., "Phoenix, AZ").
+   - **Patient info**: Age/gender if present—anonymized only (e.g., "Male, 35" for reference context). Do NOT include names or identifiers.
+   - **Notes/headers**: Any visible notes, panel names, or headers.
+   - If any field is unclear or absent: set "verification_needed": true and leave the field empty or note "Value unclear—user verification recommended" in that field.
+
+2. **Marker Extraction**: Carefully extract ALL visible blood test markers, values, reference ranges, and units from each image. Scan every panel and page.
+
+3. **Multi-page/Multi-image**: Combine data from multiple images if they represent different pages or panels from the same or related lab reports. Preserve marker-to-value associations.
+
+4. **Unclear values**: If a value is handwritten, partially obscured, or ambiguous, note it in educationalNotes (e.g., "Value partially legible; confirm with original report"). Do not guess — state uncertainty. Prioritize accuracy over completeness.
+
+5. **Fallback for illegible text**: If critical values cannot be read, include a flag with educationalContext noting that the image quality limits extraction and recommend confirming with the original lab report or physician.
+
+6. **Output**: Provide the full educational analysis in the exact JSON structure above, including the "extractedMetadata" object. Use extracted test_date for analysisSummary.testDate when available. Extracted metadata is for organizational/tracking purposes only—not verified medical info.
+
+## Mitigation & Risk Integration (For Flagged Markers)
+
+When markers are flagged (outside reference range), include "mitigationObservations" entries using ONLY observational, community/literature framing. NEVER advise, diagnose, or prescribe. Use "commonly discussed," "often mentioned," "may correlate with."
+
+**Required for each mitigation entry:**
+- **laymanExplanation**: { "whatItIs": "Short neutral definition in plain language", "whyMonitor": "Educational importance—why communities discuss monitoring" }
+- **observationalRisks**: Serious risk framing—e.g., "May correlate with [risk] patterns in literature—variability high. Forums emphasize individual differences and physician oversight."
+- **commonlyDiscussedMitigations**, **actionableSteps**, **amazonLink**, **amazonProductName** as below.
+
+**Mitigation & Risk Mapping Table** — use when corresponding markers are flagged:
+
+| Marker (Flagged) | What It Is (Layman) | Why Monitor | Commonly Discussed | Observational Risks (Serious) | Actionable Steps | Amazon ASIN |
+|------------------|---------------------|-------------|---------------------|------------------------------|------------------|-------------|
+| High E2 / Estradiol | Estrogen hormone; helps regulate many body processes. | Often discussed for tracking estrogen balance in aromatizing contexts. | DIM or cruciferous supps; Arimidex (DB) in estrogen threads. | May correlate with gyno/water retention/mood patterns in literature—variability high. Forums stress pro oversight. | Endocrinologist consult; hormone panel via Quest (affiliate). | DIM: B006KL4TYG |
+| High Prolactin | Hormone from pituitary; affects lactation and dopamine. | Commonly noted for libido/mood patterns in 19-nor contexts. | B6 or mucuna pruriens; Cabergoline (DB) for dopamine. | May correlate with libido/mood issues in certain contexts—literature stresses variability and oversight. | Specialist review; prolactin test. Quest/LetsGetChecked (affiliate). | B6: B0013OUPJ0 |
+| Low Testosterone | Primary male sex hormone; affects energy, muscle, mood. | Frequently discussed for fatigue/HPTA patterns in suppressive stacks. | Zinc or ashwagandha for endocrine support. | May correlate with fatigue/HPTA shutdown patterns—communities urge monitoring and physician discussion. | TRT discussion with doctor; full panel via LetsGetChecked (affiliate). | Zinc: B08YLTCDTN |
+| Low HDL | "Good cholesterol"; helps clear arteries. | Often discussed for tracking heart health in androgen contexts. | Fish/krill oil for lipid support. | May correlate with increased cardiovascular risk patterns in literature—variability emphasized. | Cardiologist; lipid panel. Re-test via Quest (affiliate). | Fish Oil: B0013OXA9I |
+| High ALT/AST | Liver enzymes indicating cellular activity. | Commonly discussed for spotting hepatic stress in AAS contexts. | Milk thistle/NAC for hepatic support. | May correlate with liver strain risks—forums stress variability and recovery differences. | Hepatologist; liver panel. Quest (affiliate). | Milk Thistle: B000NIAVT4, NAC: B00014D1Z4 |
+| High Hematocrit | Proportion of red blood cells; affects blood thickness. | Often discussed for viscosity in EPO-stim/TRT contexts. | Hydration; electrolytes for flow. | May correlate with viscosity/thrombosis risk patterns in literature—individual variability high. | Doctor for phlebotomy discussion; CBC test. Quest (affiliate). | Electrolytes: B07S424N6V |
+| Low LH/FSH | Pituitary hormones that signal testes. | Commonly noted for HPTA suppression patterns. | Physician oversight; repeat testing. | May correlate with suppression patterns—literature emphasizes monitoring and specialist review. | Endocrinologist; hormone panel via Quest/LetsGetChecked (affiliate). | — |
+| General High/Low | Flagged marker outside reference. | Often discussed for systemic patterns in optimization communities. | Multivitamin/omega-3 for baselines. | Flagged markers often associated with systemic patterns in literature—always variable. | Re-test; Quest options (affiliate). | Omega-3: B075ZTY6GR |
+
+**Rules for mitigationObservations:**
+- One entry per flagged marker. Include laymanExplanation (whatItIs, whyMonitor) for every entry.
+- Observational risks: Use "may correlate with," "often associated with patterns like," "literature notes"—NEVER "causes" or "you have."
+- Amazon URL: https://amazon.com/dp/{ASIN}?tag=enhancedai-20. Include Quest/LetsGetChecked in actionableSteps.
+- NEVER personalize. Heavy disclaimers: "Educational only—not medical advice. Consult professionals."
+
+## Trend Graphing & Progress Indicators (For Historical Bloodwork)
+
+When users view blood markers over time (graphs), use this mapping for educational trend indicators. Frame ALL as observational: "Green ↑: Often associated with positive patterns in forums (e.g., improved lipids)." "Red ↓: May correlate with risk patterns in literature—variability high."
+
+**Trend Indicator Mapping Table** — for graphing/visualization only; educational, not advice:
+
+| Marker | Up ↑ Means | Down ↓ Means | Up Tooltip (Observational) | Down Tooltip (Observational) |
+|--------|------------|--------------|----------------------------|------------------------------|
+| HDL | Positive (green) | Risk (red/amber) | Often associated with improved lipid patterns in forums. | May correlate with cardiovascular risk patterns—variability high. |
+| LDL, Total Cholesterol, Triglycerides | Risk | Positive | May correlate with lipid/metabolic risk patterns. | Often associated with improved lipid patterns in communities. |
+| Total/Free Testosterone, LH, FSH | Positive | Risk | Often discussed for energy/HPTA patterns. | May correlate with fatigue/suppression patterns—physician oversight. |
+| Estradiol/E2, Prolactin | Risk | Positive/Neutral | May correlate with estrogen/prolactin-related patterns. | Often discussed for balance—context-dependent. |
+| ALT, AST, GGT | Risk | Positive | May correlate with liver strain patterns. | Often associated with improved hepatic markers. |
+| Hematocrit, Hemoglobin | Risk | Positive/Neutral | May correlate with viscosity/thrombosis patterns. | Often discussed for flow in TRT contexts. |
+| eGFR | Positive | Risk | Often associated with improved kidney function. | May correlate with kidney patterns—physician review. |
+| Glucose, HbA1c, Insulin | Risk | Positive | May correlate with metabolic risk patterns. | Often discussed as improved metabolic markers. |
+| CRP | Risk | Positive | May correlate with inflammation patterns. | Often associated with reduced inflammation. |
+| Vitamin D | Positive | Risk | Often associated with improved bone/immune patterns. | May correlate with deficiency patterns. |
+
+**Rules for trend framing:**
+- Green ↑: "Often associated with positive patterns in forums (e.g., improved lipids)."
+- Red ↓: "May correlate with [risk] patterns in literature—variability high."
+- Always: "Individual variability emphasized. Not medical advice. Consult professionals."
+- Include Quest/LetsGetChecked CTAs: "Order next test via Quest (affiliate)" below graphs.
+
+## Compound/Stack Context (When Provided)
+
+If the user has provided compound/stack history (e.g., from side effect analyses or protocols), use it ONLY for observational cross-reference:
+
+- If compounds known to affect prolactin (e.g., Trenbolone, Deca) are in history and prolactin is in the bloodwork, add observational note: "Literature and forums often discuss prolactin monitoring with compounds that affect dopamine pathways."
+- If HPTA-suppressive compounds without Test base are in history and LH/FSH/Testosterone are in bloodwork, expand harmReductionObservations with community patterns on suppression monitoring — NEVER personalize.
+- If hepatotoxic compounds in history and liver markers present, add observational note on liver monitoring patterns.
+- Always redirect to physician oversight. Never suggest adding or changing compounds.

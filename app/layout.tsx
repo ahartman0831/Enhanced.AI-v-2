@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { LayoutWrapper } from '@/components/LayoutWrapper'
+import { UnsavedAnalysisProvider } from '@/contexts/UnsavedAnalysisContext'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#000000',
+  themeColor: '#0F0F0F',
 }
 
 export default function RootLayout({
@@ -25,7 +26,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <LayoutWrapper>{children}</LayoutWrapper>
+        <UnsavedAnalysisProvider>
+          <LayoutWrapper>{children}</LayoutWrapper>
+        </UnsavedAnalysisProvider>
       </body>
     </html>
   )

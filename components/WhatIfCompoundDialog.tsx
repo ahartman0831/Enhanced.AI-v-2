@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { CompoundAutocomplete } from '@/components/CompoundAutocomplete'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Loader2, Sparkles } from 'lucide-react'
 
@@ -127,10 +128,10 @@ export function WhatIfCompoundDialog({
                   </SelectContent>
                 </Select>
               ) : (
-                <Input
-                  placeholder="e.g. Trenbolone, Primobolan"
+                <CompoundAutocomplete
                   value={compound}
-                  onChange={(e) => setCompound(e.target.value)}
+                  onChange={setCompound}
+                  placeholder="e.g. Trenbolone, Primobolan"
                 />
               )}
             </div>
@@ -139,10 +140,10 @@ export function WhatIfCompoundDialog({
           {action === 'replace' && (
             <div>
               <Label>Replace with</Label>
-              <Input
-                placeholder="e.g. Anavar"
+              <CompoundAutocomplete
                 value={replaceWith}
-                onChange={(e) => setReplaceWith(e.target.value)}
+                onChange={setReplaceWith}
+                placeholder="e.g. Anavar"
               />
             </div>
           )}

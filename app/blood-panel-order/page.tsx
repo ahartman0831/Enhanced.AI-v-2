@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,9 +9,42 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
-import { Crown, Beaker, CreditCard, AlertTriangle, MapPin } from 'lucide-react'
+import { Crown, Beaker, CreditCard, AlertTriangle, MapPin, Plus, X, ExternalLink } from 'lucide-react'
+import { TELEHEALTH_PARTNERS } from '@/lib/affiliates'
 
-export default function BloodPanelOrderPage() {
+function parseMarkersFromUrl(searchParams: URLSearchParams): string[] {
+  const markersParam = searchParams.get('markers')
+  if (!markersParam) return []
+  return markersParam
+    .split(',')
+    .map((m) => decodeURIComponent(m.trim()))
+    .filter((m) => m.length > 0)
+}
+
+function BloodPanelOrderContent() {
+  const searchParams = useSearchParams()
+  const [markers, setMarkers] = useState<string[]>([])
+  const [newMarkerInput, setNewMarkerInput] = useState('')
+
+  useEffect(() => {
+    const fromUrl = parseMarkersFromUrl(searchParams)
+    if (fromUrl.length > 0) {
+      setMarkers(fromUrl)
+    }
+  }, [searchParams])
+
+  const addMarker = () => {
+    const trimmed = newMarkerInput.trim()
+    if (trimmed && !markers.includes(trimmed)) {
+      setMarkers((prev) => [...prev, trimmed])
+      setNewMarkerInput('')
+    }
+  }
+
+  const removeMarker = (index: number) => {
+    setMarkers((prev) => prev.filter((_, i) => i !== index))
+  }
+
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -80,7 +114,52 @@ export default function BloodPanelOrderPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Order Form */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-6">
+            {/* Markers to Monitor */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Beaker className="h-5 w-5" />
+                  Markers to Monitor
+                </CardTitle>
+                <CardDescription>
+                  Add the blood markers you want included in your panel. Discuss with your physician before ordering.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-wrap gap-2">
+                  {markers.map((marker, idx) => (
+                    <Badge
+                      key={idx}
+                      variant="secondary"
+                      className="pl-3 pr-1 py-1.5 text-sm flex items-center gap-1"
+                    >
+                      {marker}
+                      <button
+                        type="button"
+                        onClick={() => removeMarker(idx)}
+                        className="rounded-full p-0.5 hover:bg-muted-foreground/20"
+                        aria-label={`Remove ${marker}`}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Add marker (e.g., Prolactin, Estradiol)"
+                    value={newMarkerInput}
+                    onChange={(e) => setNewMarkerInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addMarker())}
+                  />
+                  <Button type="button" variant="outline" size="icon" onClick={addMarker} aria-label="Add marker">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle>Patient Information</CardTitle>
@@ -254,9 +333,43 @@ export default function BloodPanelOrderPage() {
                 </div>
               </CardContent>
             </Card>
+
+            <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20">
+              <CardHeader>
+                <CardTitle className="text-base">Alternative: Order Direct</CardTitle>
+                <CardDescription>
+                  Order hormone panels, lipid tests, and more via our lab partners
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Button variant="outline" className="w-full justify-start" asChild>
+                  <a href={TELEHEALTH_PARTNERS.quest} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                    <ExternalLink className="h-4 w-4" />
+                    Quest Diagnostics
+                  </a>
+                </Button>
+                <Button variant="outline" className="w-full justify-start" asChild>
+                  <a href={TELEHEALTH_PARTNERS.letsGetChecked} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                    <ExternalLink className="h-4 w-4" />
+                    LetsGetChecked
+                  </a>
+                </Button>
+                <p className="text-xs text-muted-foreground pt-2">
+                  Affiliate links – supports development
+                </p>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
     </div>
+  )
+}
+
+export default function BloodPanelOrderPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>}>
+      <BloodPanelOrderContent />
+    </Suspense>
   )
 }

@@ -52,7 +52,8 @@ export async function GET(request: NextRequest) {
           category: 'System Status',
           insight: 'Community insights are being calculated. Check back later!',
           educational_note: 'Trends require minimum participation to maintain privacy.'
-        }]
+        }],
+        layman_summary: "In plain terms: We're still gathering anonymized data from the community. Once we have enough, you'll see trends that help put your own results in context."
       })
     }
 
@@ -62,7 +63,8 @@ export async function GET(request: NextRequest) {
           category: 'Getting Started',
           insight: 'Be among the first to contribute anonymized insights for better community data.',
           educational_note: 'More participants help create more accurate educational trends.'
-        }]
+        }],
+        layman_summary: "In plain terms: The more people who contribute anonymized data, the more useful these insights become. Your participation helps others understand what's typical—while remembering everyone's results are different."
       })
     }
 
@@ -119,7 +121,12 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    return NextResponse.json({ insights })
+    // Add layman's terms summary so people understand
+    const laymanSummary = insights.length > 0
+      ? "In plain terms: These numbers show what others in similar situations often see in their bloodwork and timelines. Your results may be different—everyone responds differently. Use this as general context, not a prediction. Always work with your doctor to interpret your own labs."
+      : null
+
+    return NextResponse.json({ insights, layman_summary: laymanSummary })
 
   } catch (error) {
     console.error('Community insights error:', error)

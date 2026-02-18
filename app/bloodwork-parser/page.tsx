@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { DoctorPdfButton } from '@/components/DoctorPdfButton'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { BloodPanelUpsell } from '@/components/BloodPanelUpsell'
 import {
   FileText,
@@ -18,8 +19,17 @@ import {
   CheckCircle,
   Loader2,
   BarChart3,
-  Calendar
+  Calendar,
+  X,
+  ImageIcon,
+  Shield,
+  ChevronDown,
+  ExternalLink,
+  Package,
+  Stethoscope
 } from 'lucide-react'
+import Link from 'next/link'
+import { TELEHEALTH_PARTNERS, getAffiliateDisclosure } from '@/lib/affiliates'
 
 interface BloodworkAnalysisResult {
   analysisSummary: {
@@ -42,6 +52,8 @@ interface BloodworkAnalysisResult {
     metabolicMarkers: string
     inflammationMarkers: string
     liverKidneyFunction: string
+    androgenicEstrogenicBalance?: string
+    suppressionPatterns?: string
   }
   flags: Array<{
     severity: 'low' | 'medium' | 'high'
@@ -56,20 +68,71 @@ interface BloodworkAnalysisResult {
     longTerm: string
     influencingFactors: string[]
   }
+  harmReductionObservations?: string[]
+  harmReductionPlainLanguage?: string
+  mitigationObservations?: Array<{
+    marker: string
+    laymanExplanation?: { whatItIs: string; whyMonitor: string }
+    commonlyDiscussedMitigations: string
+    observationalRisks: string
+    actionableSteps: string
+    amazonLink?: string
+    amazonProductName?: string
+  }>
   educationalRecommendations: string[]
+  extractedMetadata?: {
+    test_date?: string
+    lab_source?: string
+    location?: string
+    patient_notes?: string
+    verification_needed?: boolean
+    other?: Record<string, unknown>
+  }
+}
+
+const ACCEPTED_FILE_TYPES = '.pdf,.jpg,.jpeg,.png'
+const ACCEPTED_MIME = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png']
+
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
 }
 
 export default function BloodworkParserPage() {
   const [bloodworkText, setBloodworkText] = useState('')
   const [testDate, setTestDate] = useState('')
   const [source, setSource] = useState('')
+  const [uploadedFiles, setUploadedFiles] = useState<Array<{ file: File; id: string }>>([])
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [result, setResult] = useState<BloodworkAnalysisResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const addFiles = (files: FileList | null) => {
+    if (!files) return
+    const newEntries: Array<{ file: File; id: string }> = []
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      if (ACCEPTED_MIME.includes(file.type)) {
+        newEntries.push({ file, id: `${file.name}-${Date.now()}-${i}` })
+      }
+    }
+    setUploadedFiles(prev => [...prev, ...newEntries])
+  }
+
+  const removeFile = (id: string) => {
+    setUploadedFiles(prev => prev.filter(f => f.id !== id))
+  }
+
+  const hasInput = bloodworkText.trim().length > 0 || uploadedFiles.length > 0
 
   const handleAnalyze = async () => {
-    if (!bloodworkText.trim()) {
-      setError('Please enter your bloodwork data')
+    if (!hasInput) {
+      setError('Please enter bloodwork data or upload PDF/image files')
       return
     }
 
@@ -77,18 +140,47 @@ export default function BloodworkParserPage() {
     setError(null)
 
     try {
-      // Parse the bloodwork text into structured data
-      const bloodworkData = parseBloodworkText(bloodworkText)
+      let bloodworkData: Record<string, unknown> | undefined
+      let imageDataUrls: string[] = []
+
+      if (bloodworkText.trim()) {
+        bloodworkData = parseBloodworkText(bloodworkText)
+      }
+
+      if (uploadedFiles.length > 0) {
+        for (const { file } of uploadedFiles) {
+          if (file.type === 'application/pdf') {
+            const arrayBuffer = await file.arrayBuffer()
+            const bytes = new Uint8Array(arrayBuffer)
+            let binary = ''
+            const chunk = 8192
+            for (let i = 0; i < bytes.length; i += chunk) {
+              binary += String.fromCharCode(...bytes.subarray(i, i + chunk))
+            }
+            const base64 = btoa(binary)
+            const res = await fetch('/api/pdf-to-images', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ pdfBase64: base64 })
+            })
+            const json = await res.json()
+            if (!res.ok) throw new Error(json.error || 'Failed to convert PDF')
+            imageDataUrls.push(...(json.dataUrls || []))
+          } else {
+            const dataUrl = await fileToDataUrl(file)
+            imageDataUrls.push(dataUrl)
+          }
+        }
+      }
 
       const response = await fetch('/api/analyze-bloodwork', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           bloodworkData,
           testDate: testDate || undefined,
-          source: source || undefined
+          source: source || undefined,
+          imageDataUrls: imageDataUrls.length > 0 ? imageDataUrls : undefined
         })
       })
 
@@ -99,9 +191,8 @@ export default function BloodworkParserPage() {
       }
 
       setResult(data.data)
-
-    } catch (err: any) {
-      setError(err.message || 'An error occurred while analyzing bloodwork')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred while analyzing bloodwork')
     } finally {
       setIsAnalyzing(false)
     }
@@ -137,6 +228,7 @@ export default function BloodworkParserPage() {
   const resetAnalysis = () => {
     setResult(null)
     setError(null)
+    setUploadedFiles([])
   }
 
   const getStatusColor = (status: string) => {
@@ -176,20 +268,72 @@ export default function BloodworkParserPage() {
           </AlertDescription>
         </Alert>
 
-        {/* Elite Blood Panel Upsell */}
-        <div className="mb-8">
-          <BloodPanelUpsell />
-        </div>
-
         {!result ? (
           /* Input Form */
           <div className="space-y-8">
+            {/* File Upload */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Upload className="h-5 w-5" />
+                  Upload Bloodwork Results
+                </CardTitle>
+                <CardDescription>
+                  Upload PDF or image files (JPG, PNG) of your lab results. Multiple files supported.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={ACCEPTED_FILE_TYPES}
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    addFiles(e.target.files)
+                    e.target.value = ''
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full"
+                >
+                  <ImageIcon className="h-4 w-4 mr-2" />
+                  Choose PDF or Images
+                </Button>
+                {uploadedFiles.length > 0 && (
+                  <ul className="space-y-2">
+                    {uploadedFiles.map(({ file, id }) => (
+                      <li
+                        key={id}
+                        className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm"
+                      >
+                        <span className="truncate flex-1">{file.name}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                          onClick={() => removeFile(id)}
+                          aria-label="Remove file"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Input Instructions */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <FileText className="h-5 w-5" />
-                  How to Input Your Bloodwork
+                  Or Paste Text
                 </CardTitle>
                 <CardDescription>
                   Enter your blood test results in a simple format for analysis
@@ -207,7 +351,7 @@ FSH: 3.2 (1.4-18.1) mIU/mL`}
                   </pre>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Include marker name, value, reference range, and units. The parser will automatically extract this information.
+                  Include marker name, value, reference range, and units.
                 </p>
               </CardContent>
             </Card>
@@ -217,7 +361,7 @@ FSH: 3.2 (1.4-18.1) mIU/mL`}
               <CardHeader>
                 <CardTitle>Bloodwork Data</CardTitle>
                 <CardDescription>
-                  Paste your blood test results below
+                  Paste your blood test results below (optional if you uploaded files)
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -269,7 +413,7 @@ FSH: 3.2 (1.4-18.1) mIU/mL`}
             <div className="flex justify-center">
               <Button
                 onClick={handleAnalyze}
-                disabled={isAnalyzing || !bloodworkText.trim()}
+                disabled={isAnalyzing || !hasInput}
                 size="lg"
               >
                 {isAnalyzing ? (
@@ -282,6 +426,14 @@ FSH: 3.2 (1.4-18.1) mIU/mL`}
                 )}
               </Button>
             </div>
+
+            {/* Blood Test CTA - below input form */}
+            <BloodPanelUpsell />
+            <p className="text-center text-sm text-muted-foreground">
+              <Link href="/bloodwork-history" className="text-cyan-600 dark:text-cyan-400 hover:underline">
+                View your bloodwork history & trends →
+              </Link>
+            </p>
           </div>
         ) : (
           /* Results Display */
@@ -326,6 +478,27 @@ FSH: 3.2 (1.4-18.1) mIU/mL`}
                     </div>
                   </div>
 
+                  {result.extractedMetadata && (result.extractedMetadata.test_date || result.extractedMetadata.lab_source || result.extractedMetadata.location) && (
+                    <div className="mb-4 rounded-lg border border-cyan-500/20 bg-cyan-500/5 dark:bg-cyan-950/20 p-3">
+                      <h4 className="text-xs font-medium text-cyan-700 dark:text-cyan-300 mb-2">Extracted Report Info</h4>
+                      <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                        {result.extractedMetadata.test_date && (
+                          <span><strong className="text-foreground">Test Date:</strong> {result.extractedMetadata.test_date}</span>
+                        )}
+                        {result.extractedMetadata.lab_source && (
+                          <span><strong className="text-foreground">Lab:</strong> {result.extractedMetadata.lab_source}</span>
+                        )}
+                        {result.extractedMetadata.location && (
+                          <span><strong className="text-foreground">Location:</strong> {result.extractedMetadata.location}</span>
+                        )}
+                      </div>
+                      {result.extractedMetadata.verification_needed && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">Some values unclear—user verification recommended.</p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-2 italic">Extracted for educational tracking only—not verified medical info.</p>
+                    </div>
+                  )}
+
                   {result.analysisSummary.keyObservations && result.analysisSummary.keyObservations.length > 0 && (
                     <div>
                       <h4 className="font-semibold mb-2">Key Educational Observations</h4>
@@ -341,6 +514,134 @@ FSH: 3.2 (1.4-18.1) mIU/mL`}
                   )}
                 </CardContent>
               </Card>
+            )}
+
+            {/* Community Insights on Bloodwork Patterns */}
+            {result.harmReductionObservations && result.harmReductionObservations.length > 0 && (
+              <details className="group rounded-lg border-2 border-cyan-200 dark:border-cyan-800 bg-cyan-50/50 dark:bg-cyan-950/20 overflow-hidden">
+                <summary className="flex items-center gap-3 cursor-pointer p-4 hover:bg-cyan-100/50 dark:hover:bg-cyan-900/20 transition-colors list-none">
+                  <Shield className="h-5 w-5 text-cyan-600 flex-shrink-0" />
+                  <span className="font-semibold text-cyan-900 dark:text-cyan-100">
+                    Community Insights on Bloodwork Patterns
+                  </span>
+                  <ChevronDown className="h-4 w-4 text-cyan-600 ml-auto group-open:rotate-180 transition-transform" />
+                </summary>
+                <div className="px-4 pb-4 pt-0 space-y-2">
+                  {result.harmReductionObservations.map((obs, idx) => (
+                    <p key={idx} className="text-sm text-muted-foreground pl-8">
+                      • {obs}
+                    </p>
+                  ))}
+                  {result.harmReductionPlainLanguage && (
+                    <div className="mt-4 pl-8 p-3 rounded-lg bg-cyan-100/50 dark:bg-cyan-900/30 border border-cyan-200 dark:border-cyan-800">
+                      <p className="text-xs font-medium text-cyan-900 dark:text-cyan-100 mb-1">In plain terms</p>
+                      <p className="text-sm text-cyan-800 dark:text-cyan-200">
+                        {result.harmReductionPlainLanguage}
+                      </p>
+                    </div>
+                  )}
+                  <div className="mt-4 pl-8 flex flex-wrap gap-2 items-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-cyan-700 dark:text-cyan-300 border-cyan-300 dark:border-cyan-700 hover:bg-cyan-100 dark:hover:bg-cyan-900/40"
+                      asChild
+                    >
+                      <a href={TELEHEALTH_PARTNERS.quest} target="_blank" rel="noopener noreferrer">
+                        Quest Diagnostics <ExternalLink className="h-3 w-3 ml-1 inline" />
+                      </a>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-cyan-700 dark:text-cyan-300 border-cyan-300 dark:border-cyan-700 hover:bg-cyan-100 dark:hover:bg-cyan-900/40"
+                      asChild
+                    >
+                      <a href={TELEHEALTH_PARTNERS.letsGetChecked} target="_blank" rel="noopener noreferrer">
+                        LetsGetChecked <ExternalLink className="h-3 w-3 ml-1 inline" />
+                      </a>
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground pl-8 pt-1">
+                    {getAffiliateDisclosure()}
+                  </p>
+                  <p className="text-xs text-muted-foreground pl-8 pt-2 italic">
+                    These are general educational observations from community patterns and literature. Individual responses vary significantly. Always consult a qualified healthcare professional.
+                  </p>
+                </div>
+              </details>
+            )}
+
+            {/* Mitigation Observations (Flagged Markers) */}
+            {result.mitigationObservations && result.mitigationObservations.length > 0 && (
+              <div className="space-y-4">
+                <div className="rounded-lg border-2 border-amber-200 dark:border-amber-800 bg-amber-50/30 dark:bg-amber-950/10 p-4">
+                  <h2 className="text-xl font-bold flex items-center gap-2 mb-2">
+                    <Package className="h-5 w-5" />
+                    Flagged Markers: Educational Insights
+                  </h2>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    <strong>Educational only — not medical advice.</strong> These are patterns often noted in communities and literature. Individual responses vary significantly. Always consult a qualified healthcare professional.
+                  </p>
+                  <Accordion type="multiple" className="w-full">
+                    {result.mitigationObservations.map((mit, idx) => (
+                      <AccordionItem key={idx} value={`mit-${idx}`} className="border rounded-lg mb-3 last:mb-0 bg-background/50">
+                        <AccordionTrigger className="px-4 py-3 hover:no-underline [&[data-state=open]]:rounded-t-lg">
+                          <span className="font-semibold text-left">{mit.marker}</span>
+                        </AccordionTrigger>
+                        <AccordionContent className="px-4 pb-4 space-y-4">
+                          {mit.laymanExplanation && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-lg bg-muted/50">
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground mb-0.5">What it is</p>
+                                <p className="text-sm">{mit.laymanExplanation.whatItIs}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground mb-0.5">Why monitor</p>
+                                <p className="text-sm">{mit.laymanExplanation.whyMonitor}</p>
+                              </div>
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-0.5">Commonly discussed supports</p>
+                            <p className="text-sm">{mit.commonlyDiscussedMitigations}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-0.5">Observational patterns</p>
+                            <p className="text-sm text-amber-800 dark:text-amber-200">{mit.observationalRisks}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-0.5">Actionable steps</p>
+                            <p className="text-sm">{mit.actionableSteps}</p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {mit.amazonLink && mit.amazonProductName && (
+                              <Button variant="outline" size="sm" asChild>
+                                <a href={mit.amazonLink} target="_blank" rel="noopener noreferrer">
+                                  Explore {mit.amazonProductName} <ExternalLink className="h-3 w-3 ml-1 inline" />
+                                </a>
+                              </Button>
+                            )}
+                            <Button variant="outline" size="sm" asChild>
+                              <a href={TELEHEALTH_PARTNERS.quest} target="_blank" rel="noopener noreferrer">
+                                Quest Diagnostics <ExternalLink className="h-3 w-3 ml-1 inline" />
+                              </a>
+                            </Button>
+                            <Button variant="outline" size="sm" asChild>
+                              <a href={TELEHEALTH_PARTNERS.letsGetChecked} target="_blank" rel="noopener noreferrer">
+                                LetsGetChecked <ExternalLink className="h-3 w-3 ml-1 inline" />
+                              </a>
+                            </Button>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
+                  <p className="text-xs text-muted-foreground italic mt-4">
+                    {getAffiliateDisclosure()}
+                  </p>
+                </div>
+              </div>
             )}
 
             {/* Pattern Recognition */}
@@ -381,6 +682,22 @@ FSH: 3.2 (1.4-18.1) mIU/mL`}
                         {result.patternRecognition.liverKidneyFunction}
                       </p>
                     </div>
+                    {result.patternRecognition.androgenicEstrogenicBalance && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Androgenic/Estrogenic Balance</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {result.patternRecognition.androgenicEstrogenicBalance}
+                        </p>
+                      </div>
+                    )}
+                    {result.patternRecognition.suppressionPatterns && (
+                      <div>
+                        <h4 className="font-semibold mb-2">Suppression Patterns (Observational)</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {result.patternRecognition.suppressionPatterns}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -499,6 +816,32 @@ FSH: 3.2 (1.4-18.1) mIU/mL`}
               </Card>
             )}
 
+            {/* Telehealth Consultation CTA */}
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="pt-6">
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                  <div className="p-3 rounded-lg bg-primary/10">
+                    <Stethoscope className="h-8 w-8 text-primary" />
+                  </div>
+                  <div className="flex-1 text-center sm:text-left">
+                    <h3 className="font-semibold text-lg">Discuss Your Results with a Physician</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Schedule a telehealth consultation to review your bloodwork with a licensed physician.
+                    </p>
+                  </div>
+                  <Button asChild>
+                    <Link href={TELEHEALTH_PARTNERS.hims} target="_blank" rel="noopener noreferrer">
+                      Explore Telehealth Options
+                      <ExternalLink className="h-4 w-4 ml-2" />
+                    </Link>
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-4 text-center sm:text-left">
+                  {getAffiliateDisclosure()}
+                </p>
+              </CardContent>
+            </Card>
+
             {/* PDF Button */}
             <div className="flex justify-center">
               <DoctorPdfButton
@@ -517,6 +860,14 @@ FSH: 3.2 (1.4-18.1) mIU/mL`}
                 Analyze New Bloodwork
               </Button>
             </div>
+
+            {/* Blood Test CTA - below results */}
+            <BloodPanelUpsell />
+            <p className="text-center text-sm text-muted-foreground">
+              <Link href="/bloodwork-history" className="text-cyan-600 dark:text-cyan-400 hover:underline">
+                View your bloodwork history & trends →
+              </Link>
+            </p>
           </div>
         )}
       </div>

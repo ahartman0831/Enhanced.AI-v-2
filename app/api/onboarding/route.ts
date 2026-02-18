@@ -17,13 +17,21 @@ export async function GET() {
       .single()
 
     if (error && error.code !== 'PGRST116') {
-      return NextResponse.json({ error: 'Failed to fetch onboarding' }, { status: 500 })
+      console.error('Onboarding fetch Supabase error:', error)
+      return NextResponse.json(
+        { error: 'Failed to fetch onboarding', details: error.message },
+        { status: 500 }
+      )
     }
 
     return NextResponse.json(data || null)
   } catch (err) {
     console.error('Onboarding fetch error:', err)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const message = err instanceof Error ? err.message : 'Internal server error'
+    return NextResponse.json(
+      { error: 'Internal server error', details: message },
+      { status: 500 }
+    )
   }
 }
 
@@ -73,7 +81,27 @@ export async function POST(request: NextRequest) {
       }, { onConflict: 'id' })
 
     if (onboardingError) {
-      return NextResponse.json({ error: 'Failed to save onboarding' }, { status: 500 })
+      console.error('Onboarding save Supabase error:', onboardingError)
+      return NextResponse.json(
+        { error: 'Failed to save onboarding', details: onboardingError.message },
+        { status: 500 }
+      )
+    }
+
+    // Sync to profiles so age, sex, goals, experience_level are available
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .upsert({
+        id: user.id,
+        age: ageNum,
+        sex,
+        goals: primary_goal,
+        experience_level: ped_experience_level,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'id' })
+    if (profileError) {
+      console.error('Profile sync error (onboarding):', profileError)
+      // Don't fail the request - onboarding was saved successfully
     }
 
     if (allow_anonymized_insights === true) {
@@ -96,6 +124,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true })
   } catch (err) {
     console.error('Onboarding save error:', err)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const message = err instanceof Error ? err.message : 'Internal server error'
+    return NextResponse.json(
+      { error: 'Internal server error', details: message },
+      { status: 500 }
+    )
   }
 }

@@ -115,7 +115,7 @@ function OnboardingContent() {
 
       const data = await res.json()
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to save')
+        throw new Error(data.details || data.error || 'Failed to save')
       }
 
       router.replace(redirectTo)

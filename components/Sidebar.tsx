@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -19,17 +20,22 @@ import {
   Stethoscope,
   TrendingUp,
   User,
-  Shield
+  Shield,
+  Beaker,
+  BarChart3
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useSupabase } from '@/hooks/useSupabase'
+import { Logo } from '@/components/Logo'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Compounds', href: '/compounds', icon: Pill },
   { name: 'Stack Explorer', href: '/stack-explorer', icon: Search },
   { name: 'Side Effects', href: '/side-effects', icon: AlertTriangle },
+  { name: 'Order Blood Test', href: '/blood-panel-order', icon: Beaker },
   { name: 'Bloodwork Parser', href: '/bloodwork-parser', icon: FileText },
+  { name: 'Bloodwork History', href: '/bloodwork-history', icon: BarChart3 },
   { name: 'Progress Photos', href: '/progress-photos', icon: Camera },
   { name: 'Results Forecaster', href: '/results-forecaster', icon: TrendingUp },
   { name: 'Recovery Timeline', href: '/recovery-timeline', icon: Clock },
@@ -42,6 +48,11 @@ export function Sidebar() {
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
   const { supabase } = useSupabase()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -50,8 +61,10 @@ export function Sidebar() {
 
   return (
     <div className="flex h-full w-64 flex-col bg-card border-r">
-      <div className="flex h-16 items-center px-6 border-b">
-        <h1 className="text-xl font-bold">Enhanced AI</h1>
+      <div className="flex h-28 w-full items-stretch justify-stretch p-3 border-b">
+        <div className="flex-1 min-w-0 min-h-0 flex items-center justify-center">
+          <Logo size="fill" showText={false} className="justify-center" />
+        </div>
       </div>
 
       <nav className="flex-1 space-y-1 p-4">
@@ -81,12 +94,14 @@ export function Sidebar() {
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
           className="w-full justify-start"
         >
-          {theme === 'dark' ? (
+          {!mounted ? (
+            <Moon className="mr-2 h-4 w-4" />
+          ) : theme === 'dark' ? (
             <Sun className="mr-2 h-4 w-4" />
           ) : (
             <Moon className="mr-2 h-4 w-4" />
           )}
-          {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+          {!mounted ? 'Theme' : theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
         </Button>
 
         <Button
