@@ -254,7 +254,11 @@ export default function StackExplorerPage() {
         })
       })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Failed to regenerate')
+      if (!response.ok) {
+        const msg = data.error || 'Failed to regenerate'
+        const flags = data.flags as string[] | undefined
+        throw new Error(flags?.length ? `${msg} Flagged: ${flags.join(', ')}` : msg)
+      }
       setResult(data.data)
       setCurrentReportId(data.protocolId ?? null)
     } catch (err: any) {
@@ -299,7 +303,9 @@ export default function StackExplorerPage() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to analyze stack')
+        const msg = data.error || 'Failed to analyze stack'
+        const flags = data.flags as string[] | undefined
+        throw new Error(flags?.length ? `${msg} Flagged: ${flags.join(', ')}` : msg)
       }
 
       setResult(data.data)

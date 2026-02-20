@@ -131,7 +131,9 @@ export default function RecoveryTimelinePage() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate recovery timeline')
+        const msg = data.error || 'Failed to generate recovery timeline'
+        const flags = data.flags as string[] | undefined
+        throw new Error(flags?.length ? `${msg} Flagged: ${flags.join(', ')}` : msg)
       }
 
       setResult(data.data)

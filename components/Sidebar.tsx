@@ -23,9 +23,11 @@ import {
   Shield,
   Beaker,
   BarChart3,
+  Calculator,
   CreditCard,
   Lock,
-  Sparkles
+  Sparkles,
+  ShoppingBag
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useSupabase } from '@/hooks/useSupabase'
@@ -43,11 +45,13 @@ const navigation = [
   { name: 'Bloodwork Parser', href: '/bloodwork-parser', icon: FileText },
   { name: 'Bloodwork History', href: '/bloodwork-history', icon: BarChart3 },
   { name: 'Progress Photos', href: '/progress-photos', icon: Camera },
+  { name: 'FFMI Calculator', href: '/ffmi-calculator', icon: Calculator },
   { name: 'Results Forecaster', href: '/results-forecaster', icon: TrendingUp },
   { name: 'Recovery Timeline', href: '/recovery-timeline', icon: Clock },
   { name: 'Counterfeit Checker', href: '/counterfeit-checker', icon: Shield },
   { name: 'Supplement Analyzer', href: '/supplement-analyzer', icon: Sparkles },
   { name: 'Telehealth Referral', href: '/telehealth-referral', icon: Stethoscope },
+  { name: 'Shop', href: '/shop', icon: ShoppingBag },
   { name: 'Profile', href: '/profile', icon: User },
   { name: 'Subscription', href: '/subscription', icon: CreditCard },
 ]

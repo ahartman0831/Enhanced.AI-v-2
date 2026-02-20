@@ -38,7 +38,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Protect authenticated routes
-  const protectedRoutes = ['/dashboard', '/profile', '/subscription', '/stack-explorer', '/side-effects', '/compounds', '/onboarding', '/blood-panel-order', '/bloodwork-parser', '/bloodwork-history']
+  const protectedRoutes = ['/dashboard', '/profile', '/subscription', '/stack-explorer', '/side-effects', '/compounds', '/onboarding', '/blood-panel-order', '/bloodwork-parser', '/bloodwork-history', '/shop', '/ffmi-calculator']
   const isProtectedRoute = protectedRoutes.some(route =>
     request.nextUrl.pathname.startsWith(route)
   )

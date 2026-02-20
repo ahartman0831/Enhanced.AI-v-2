@@ -86,7 +86,7 @@ export async function GET(
     if (!grokResult.success) {
       const status = grokResult._complianceBlocked ? 422 : 500
       return NextResponse.json(
-        { error: grokResult.error || 'Failed to generate breakdown' },
+        { error: grokResult.error || 'Failed to generate breakdown', flags: grokResult._complianceFlags },
         { status }
       )
     }

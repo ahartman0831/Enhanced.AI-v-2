@@ -72,6 +72,13 @@ export function getAffiliateDisclosure(): string {
 }
 
 /**
+ * Bloodwork/Shop affiliate disclosure for educational product links
+ */
+export function getBloodworkAffiliateDisclosure(): string {
+  return "Some links earn commissions—educational exploration only."
+}
+
+/**
  * Check if a supplement has a direct product link
  */
 export function hasDirectProductLink(supplementName: string): boolean {

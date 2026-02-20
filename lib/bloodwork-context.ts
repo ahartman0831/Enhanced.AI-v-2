@@ -14,11 +14,22 @@ export interface BloodworkContextResult {
 }
 
 /**
- * Extract compound names from side_effect_logs and enhanced_protocols.
+ * Extract compound names from profile, side_effect_logs, and enhanced_protocols.
  */
 async function getRecentCompounds(userId: string): Promise<string[]> {
   const supabase = await createSupabaseServerClient()
   const compounds = new Set<string>()
+
+  // From profile current_compounds_json (user's shared stack)
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('current_compounds_json')
+    .eq('id', userId)
+    .single()
+  const cc = profile?.current_compounds_json as { compounds?: string[] } | null
+  if (cc?.compounds?.length) {
+    cc.compounds.forEach((c) => (typeof c === 'string' && c.trim() ? compounds.add(c.trim()) : null))
+  }
 
   // From side_effect_logs (most recent analyses)
   const { data: sideEffectLogs } = await supabase

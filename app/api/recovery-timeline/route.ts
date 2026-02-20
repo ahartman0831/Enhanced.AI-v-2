@@ -222,7 +222,7 @@ export async function POST(request: NextRequest) {
     if (!grokResult.success) {
       const status = grokResult._complianceBlocked ? 422 : 500
       return NextResponse.json(
-        { error: grokResult.error || 'Failed to generate recovery timeline' },
+        { error: grokResult.error || 'Failed to generate recovery timeline', flags: grokResult._complianceFlags },
         { status }
       )
     }

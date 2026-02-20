@@ -21,11 +21,12 @@ export function WeeklyWhatChangedCard({ className }: WeeklyWhatChangedCardProps)
       setError(null)
 
       const response = await fetch('/api/weekly-summary')
-      if (!response.ok) {
-        throw new Error('Failed to fetch weekly summary')
-      }
-
       const data = await response.json()
+      if (!response.ok) {
+        const msg = data.error || 'Failed to fetch weekly summary'
+        const flags = data.flags as string[] | undefined
+        throw new Error(flags?.length ? `${msg} Flagged: ${flags.join(', ')}` : msg)
+      }
       setSummary(data.summary || 'No significant changes detected since last log')
       setLastUpdated(data.generated_at || new Date().toISOString())
     } catch (err: any) {

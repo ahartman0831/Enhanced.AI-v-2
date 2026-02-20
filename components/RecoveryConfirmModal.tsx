@@ -16,35 +16,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { SideEffectsCompoundInput } from '@/components/SideEffectsCompoundInput'
-import { AlertTriangle, Loader2, Plus, X, CheckCircle, Pill, Activity, Shield } from 'lucide-react'
-
-const DOSAGE_UNITS = ['mg', 'mcg', 'iu', 'g', 'ml', 'units', 'other'] as const
-const DOSAGE_FREQUENCIES = [
-  { value: 'daily', label: 'Daily' },
-  { value: 'twice_daily', label: 'Twice daily' },
-  { value: 'eod', label: 'EOD (every other day)' },
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'twice_weekly', label: 'Twice weekly' },
-  { value: 'every_3_days', label: 'Every 3 days' },
-  { value: 'other', label: 'Other' },
-] as const
-
-const DOSAGE_ROUTES = [
-  { value: 'im', label: 'Intramuscular (IM)' },
-  { value: 'subq', label: 'Subcutaneous (Sub-Q)' },
-  { value: 'oral', label: 'Oral' },
-  { value: 'transdermal', label: 'Transdermal' },
-  { value: 'nasal', label: 'Nasal' },
-  { value: 'other', label: 'Other' },
-] as const
-
-const DURATION_UNITS = [
-  { value: 'days', label: 'Days' },
-  { value: 'weeks', label: 'Weeks' },
-  { value: 'months', label: 'Months' },
-  { value: 'years', label: 'Years' },
-] as const
+import { CompoundDosageSection, DOSAGE_UNITS, DOSAGE_FREQUENCIES, DOSAGE_ROUTES, DURATION_UNITS } from '@/components/CompoundDosageSection'
+import { AlertTriangle, Loader2, Plus, X, CheckCircle, Activity, Shield } from 'lucide-react'
+import { compoundsDataDiffers, type CurrentCompoundsData } from '@/lib/profile-compounds'
 
 /** Parse saved dosages string back into compoundDosages + optional additional notes */
 function parseDosagesString(
@@ -218,6 +192,28 @@ export function RecoveryConfirmModal({
   const fetchPrefillData = useCallback(async () => {
     setIsLoadingPrefill(true)
     try {
+      const profileRes = await fetch('/api/profile')
+      if (profileRes.ok) {
+        const profileData = await profileRes.json()
+        const cc = profileData.current_compounds_json as CurrentCompoundsData | null
+        if (cc?.compounds?.length) {
+          setProfileCompounds(cc)
+          setSelectedCompounds(cc.compounds)
+          setCompoundDosages(cc.compoundDosages ?? {})
+          setDosageNotes(cc.dosageNotes ?? '')
+          const sideRes = await fetch('/api/side-effects')
+          if (sideRes.ok) {
+            const { data } = await sideRes.json()
+            const logs = (data ?? []) as SideEffectLog[]
+            const latest = logs[0]
+            if (latest) setSelectedSideEffects(latest.side_effects ?? [])
+          }
+          setIsLoadingPrefill(false)
+          return
+        }
+        setProfileCompounds(null)
+      }
+
       const res = await fetch('/api/side-effects')
       if (res.ok) {
         const { data } = await res.json()
@@ -228,7 +224,6 @@ export function RecoveryConfirmModal({
           setSelectedCompounds(compounds)
           setSelectedSideEffects(latest.side_effects ?? [])
           const { compoundDosages: parsed, additionalNotes } = parseDosagesString(latest.dosages, compounds)
-          // Prefer explicit additional_supplements column over parsed from dosages
           setDosageNotes((latest.additional_supplements ?? additionalNotes) || '')
           setCompoundDosages(parsed)
         }
@@ -293,6 +288,15 @@ export function RecoveryConfirmModal({
     return d && d.amount.trim() !== ''
   })
 
+  const doSaveAndAnalyze = async () => {
+    await onSaveAndAnalyze({
+      compounds: selectedCompounds,
+      dosages: buildDosagesString(),
+      sideEffects: selectedSideEffects,
+    })
+    onOpenChange(false)
+  }
+
   const handleSaveAndAnalyze = async () => {
     if (selectedSideEffects.length === 0) {
       setSaveError('Please add at least one side effect.')
@@ -303,13 +307,38 @@ export function RecoveryConfirmModal({
       return
     }
     setSaveError(null)
+
+    const currentData = { compounds: selectedCompounds, compoundDosages, dosageNotes }
+    if (compoundsDataDiffers(profileCompounds, currentData)) {
+      setShowSaveToProfileConfirm(true)
+      return
+    }
+
     try {
-      await onSaveAndAnalyze({
-        compounds: selectedCompounds,
-        dosages: buildDosagesString(),
-        sideEffects: selectedSideEffects,
-      })
-      onOpenChange(false)
+      await doSaveAndAnalyze()
+    } catch (err: unknown) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save and analyze')
+    }
+  }
+
+  const handleSaveToProfileChoice = async (saveToProfile: boolean) => {
+    setShowSaveToProfileConfirm(false)
+    try {
+      if (saveToProfile) {
+        const res = await fetch('/api/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            current_compounds_json: {
+              compounds: selectedCompounds,
+              compoundDosages,
+              dosageNotes: dosageNotes.trim() || undefined,
+            },
+          }),
+        })
+        if (!res.ok) throw new Error('Failed to save to profile')
+      }
+      await doSaveAndAnalyze()
     } catch (err: unknown) {
       setSaveError(err instanceof Error ? err.message : 'Failed to save and analyze')
     }
@@ -364,140 +393,20 @@ export function RecoveryConfirmModal({
             </div>
           ) : (
             <>
-              {/* Compounds */}
-              <div className="space-y-3">
-                <Label className="flex items-center gap-2">
-                  <Pill className="h-4 w-4" />
-                  Compounds
-                </Label>
-                <SideEffectsCompoundInput
-                  onAdd={addCompound}
-                  existingNames={selectedCompounds}
-                  disabled={isAnalyzing}
-                />
-                {selectedCompounds.length > 0 && (
-                  <>
-                    <p className="text-xs text-muted-foreground pt-2">
-                      Amount, unit, frequency, route, and length of time used are required for each compound.
-                    </p>
-                    <div className="pt-2 border-t overflow-x-auto">
-                      <table className="w-full min-w-[640px] text-sm">
-                        <thead>
-                          <tr className="border-b text-left text-muted-foreground">
-                            <th className="py-2 pr-2 font-medium">Compound</th>
-                            <th className="py-2 pr-2 font-medium">Amount <span className="text-destructive">*</span></th>
-                            <th className="py-2 pr-2 font-medium">Unit <span className="text-destructive">*</span></th>
-                            <th className="py-2 pr-2 font-medium">Frequency <span className="text-destructive">*</span></th>
-                            <th className="py-2 pr-2 font-medium">Route</th>
-                            <th className="py-2 pr-2 font-medium">Length of time <span className="text-destructive">*</span></th>
-                            <th className="py-2 w-8"></th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                        {selectedCompounds.map((name) => {
-                          const d = compoundDosages[name] ?? { amount: '', unit: 'mg', frequency: 'weekly', route: 'im', durationValue: '', durationUnit: 'weeks' }
-                          return (
-                            <tr key={name} className="border-b last:border-0">
-                              <td className="py-2 pr-2 font-medium align-top">{name}</td>
-                              <td className="py-2 pr-2 align-top">
-                                <Input
-                                  type="text"
-                                  inputMode="decimal"
-                                  placeholder="e.g. 250"
-                                  value={d.amount}
-                                  onChange={(e) => updateCompoundDosage(name, 'amount', e.target.value)}
-                                  className="h-8 w-20"
-                                />
-                              </td>
-                              <td className="py-2 pr-2 align-top">
-                                <Select value={d.unit} onValueChange={(v) => updateCompoundDosage(name, 'unit', v)}>
-                                  <SelectTrigger className="h-8 w-16">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {DOSAGE_UNITS.map((u) => (
-                                      <SelectItem key={u} value={u}>{u}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </td>
-                              <td className="py-2 pr-2 align-top">
-                                <Select value={d.frequency} onValueChange={(v) => updateCompoundDosage(name, 'frequency', v)}>
-                                  <SelectTrigger className="h-8 w-28">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {DOSAGE_FREQUENCIES.map((f) => (
-                                      <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </td>
-                              <td className="py-2 pr-2 align-top">
-                                <Select value={d.route} onValueChange={(v) => updateCompoundDosage(name, 'route', v)}>
-                                  <SelectTrigger className="h-8 w-20">
-                                    <SelectValue placeholder="Route" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {DOSAGE_ROUTES.map((r) => (
-                                      <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </td>
-                              <td className="py-2 pr-2 align-top">
-                                <div className="flex gap-1 items-center">
-                                  <Input
-                                    type="text"
-                                    inputMode="numeric"
-                                    placeholder="e.g. 12"
-                                    value={d.durationValue ?? ''}
-                                    onChange={(e) => updateCompoundDosage(name, 'durationValue', e.target.value)}
-                                    className="h-8 w-14"
-                                  />
-                                  <Select value={d.durationUnit ?? 'weeks'} onValueChange={(v) => updateCompoundDosage(name, 'durationUnit', v)}>
-                                    <SelectTrigger className="h-8 w-20">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {DURATION_UNITS.map((u) => (
-                                        <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <p className="text-xs text-muted-foreground mt-0.5">Time used without break</p>
-                              </td>
-                              <td className="py-2 align-top">
-                                <button
-                                  type="button"
-                                  onClick={() => removeCompound(name)}
-                                  className="text-muted-foreground hover:text-destructive p-1"
-                                  aria-label={`Remove ${name}`}
-                                >
-                                  <X className="h-3 w-3" />
-                                </button>
-                              </td>
-                            </tr>
-                          )
-                        })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                )}
-
-                <div className="space-y-1 pt-2">
-                  <Label className="text-xs">Additional supplements or information (optional)</Label>
-                  <Textarea
-                    placeholder="e.g. Fish oil, multivitamin, or any other supplements or relevant info to list"
-                    value={dosageNotes}
-                    onChange={(e) => setDosageNotes(e.target.value)}
-                    rows={2}
-                    className="resize-none text-sm"
-                  />
-                </div>
-              </div>
+              {/* Compounds - same component as profile */}
+              <CompoundDosageSection
+                selectedCompounds={selectedCompounds}
+                compoundDosages={compoundDosages}
+                dosageNotes={dosageNotes}
+                onAddCompound={addCompound}
+                onRemoveCompound={removeCompound}
+                onUpdateDosage={updateCompoundDosage}
+                onDosageNotesChange={setDosageNotes}
+                disabled={isAnalyzing}
+                durationContext="used"
+                showRequired={true}
+                title="Compounds"
+              />
 
               {/* Side Effects */}
               <div className="space-y-3">
@@ -558,6 +467,15 @@ export function RecoveryConfirmModal({
             </Alert>
           )}
 
+          {showSaveToProfileConfirm && (
+            <Alert className="border-cyan-200 bg-cyan-50 dark:bg-cyan-950/20 dark:border-cyan-800">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Save this strategy to your profile?</strong> Your compounds differ from what&apos;s saved. Saving will prefill future confirm dialogs.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {showSkipConfirm && (
             <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
               <AlertTriangle className="h-4 w-4" />
@@ -569,7 +487,34 @@ export function RecoveryConfirmModal({
         </div>
 
         <DialogFooter className="px-6 py-4 border-t shrink-0 flex-col sm:flex-row gap-2">
-          {showSkipConfirm ? (
+          {showSaveToProfileConfirm ? (
+            <>
+              <Button
+                onClick={() => handleSaveToProfileChoice(true)}
+                disabled={isAnalyzing}
+                className="bg-cyan-600 hover:bg-cyan-700 text-white"
+              >
+                {isAnalyzing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Yes, Save to Profile & Analyze'
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => handleSaveToProfileChoice(false)}
+                disabled={isAnalyzing}
+              >
+                No, Just Analyze
+              </Button>
+              <Button variant="ghost" onClick={() => setShowSaveToProfileConfirm(false)} disabled={isAnalyzing}>
+                Cancel
+              </Button>
+            </>
+          ) : showSkipConfirm ? (
             <>
               <Button
                 variant="secondary"

@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
       console.error('Grok forecast error:', grokResult.error)
       const status = grokResult._complianceBlocked ? 422 : 500
       return NextResponse.json(
-        { error: grokResult.error || 'Failed to generate forecast' },
+        { error: grokResult.error || 'Failed to generate forecast', flags: grokResult._complianceFlags },
         { status }
       )
     }

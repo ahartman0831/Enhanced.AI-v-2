@@ -74,7 +74,7 @@ Please analyze the product images for authenticity indicators and provide the ed
     if (!grokResult.success) {
       const status = grokResult._complianceBlocked ? 422 : 500
       return NextResponse.json(
-        { error: grokResult.error || 'Failed to analyze product' },
+        { error: grokResult.error || 'Failed to analyze product', flags: grokResult._complianceFlags },
         { status }
       )
     }

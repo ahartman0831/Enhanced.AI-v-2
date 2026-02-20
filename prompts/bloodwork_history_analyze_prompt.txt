@@ -1,0 +1,36 @@
+The user has bloodwork history with the following marker trends. Analyze and provide educational insights. Use structured, evidence-substantiated details sourced from literature (Endocrine Society guidelines, PMC reviews, JCEM, AHA) where applicable.
+
+COMPLIANCE REQUIREMENTS (must follow):
+- Include at least 2 of these phrases: "educational purposes only", "not medical advice", "consult a physician", "individual variability", "professional oversight"
+- MANDATE in patternNotes: "Individual variability high; consult physician for trends."
+- Use ONLY observational framing: "literature suggests", "studies note", "commonly discussed", "may correlate with"
+- NEVER use: "recommend", "suggest" (without "consult"), "will see", "will experience", "predict", "guarantee", dosage numbers with units, or direct protocol instructions
+- For commonlyDiscussedSupports: "noted in literature patterns" only; NO direct benefits claims. No "take this"—just "Explore in Shop/Supplement Analyzer."
+- Frame all insights as hypothetical and variable. Add enhanced angle when relevant: "In bodybuilding lit, patterns with compounds like X show..."
+
+MARKER INSIGHTS SCHEMA — each object must include (expand for teaching depth):
+
+- marker: string
+- trend: "up"|"down"|"stable"
+- markerCategory: "hormonal"|"metabolic"|"cv"|"liver"|"kidney"|"inflammation"|"blood"|"other" (for UI icons)
+- laymanWhatItIs: 2-3 sentences. E.g., for Testosterone Total ↑: "The primary male androgen, produced mainly in testes, influencing muscle mass, strength, and libido. In bloodwork, it measures bound/unbound forms; supraphysiological levels (e.g., >1000 ng/dL) are patterns noted in endocrine lit for enhanced states."
+- laymanWhyMonitor: Teach relevance. E.g., "Serial tracking observes hormonal patterns; lit suggests monitoring for balance amid androgen influences, where trends ↑ may correlate with gains but require CV/liver oversight."
+- litContext: Deepen with sources. E.g., "Studies (e.g., JCEM reviews) note high T ↑ correlations with polycythemia (RBC spikes) or prostate patterns; variability high due to genetics/dosing." Add enhanced: "In bodybuilding lit, patterns with compounds like Trestolone show rapid T elevations."
+- observationalRisk: Serious risk framing—observational only.
+- referenceRangesTrends: "Typical lab ref: 300-1000 ng/dL natural; enhanced patterns often 1500+ per observational studies. Trend ↑ from [prior] to [latest] may correlate with stack synergies—individual variability high." Use placeholder [prior]/[latest] from history when available.
+- stackInteractions: Observational. E.g., "Lit suggests androgens (e.g., Test/MENT) amplify T while potentially suppressing HDL; monitor alongside lipids."
+- prosConsBullets: Object with positivePatterns (array) and riskPatterns (array). E.g., for HDL ↑ (low at 32): positivePatterns: ["May correlate with better CV clearance per AHA studies"], riskPatterns: ["Low levels (<40 mg/dL) discussed in androgen lit for inflammation risks"]
+- commonlyDiscussedSupports: "Lit patterns note boron/zinc for T support; communities discuss DIM for E2 balance. Explore in Shop/Supplement Analyzer."
+- deepDiveSnippet: Optional 1-2 sentence lit snippet for expandable "Deep Dive" (e.g., "Endocrine Society guidelines note serial T monitoring in TRT contexts.")
+- appTieIn: "Analyze potential interactions in Supplement Analyzer" or "Explore TRT clinics in Shop for pro oversight."
+- amazonProductHint: Product name (e.g., "Onnit Zinc", "milk thistle silymarin")
+- shopCategoryHint: "Explore recovery tools in Shop" or "Explore liver support in Shop"
+
+COVER ALL MARKERS: Include A/G Ratio when flagged (low: "Patterns suggest inflammation/liver issues in lit—consult pro"). Include E2, PSA for TRT discussions. E2: "May correlate with aromatization in lit."
+
+OUTPUT JSON:
+- trendSummary: string
+- patternNotes: array (Quest/LetsGetChecked; "Discuss patterns in app community—observational only"; "Some links earn commissions—educational exploration only")
+- markerInsights: array of objects with all fields above
+
+Return ONLY valid JSON.

@@ -173,7 +173,7 @@ export default function AdminCompliancePage() {
           <h1 className="text-2xl font-bold text-foreground">Compliance Flags</h1>
         </div>
         <p className="text-muted-foreground text-sm mb-6">
-          Internal review of Grok output scans. Only visible to admins (dev_mode_enabled).
+          Internal review of AI output scans. Only visible to admins (dev_mode_enabled).
         </p>
 
         {error && (
@@ -210,7 +210,7 @@ export default function AdminCompliancePage() {
             <CardContent className="py-12 text-center text-muted-foreground">
               <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No compliance flags yet.</p>
-              <p className="text-sm mt-1">Flags are logged when Grok outputs trigger compliance rules.</p>
+              <p className="text-sm mt-1">Flags are logged when AI outputs trigger compliance rules.</p>
             </CardContent>
           </Card>
         ) : (

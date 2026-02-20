@@ -56,12 +56,21 @@ function replaceVariables(template: string, variables: Record<string, string> = 
   return result
 }
 
+/** Grok pricing: input $0.20/1M, output $0.50/1M */
+const GROK_INPUT_PRICE_PER_MILLION = 0.2
+const GROK_OUTPUT_PRICE_PER_MILLION = 0.5
+
 export interface CallGrokResult {
   success: boolean
   data?: any
   error?: string
   tokensUsed?: number
+  inputTokens?: number
+  outputTokens?: number
+  costUsd?: number
   _complianceBlocked?: boolean
+  /** Flags that triggered the compliance block (when _complianceBlocked is true) */
+  _complianceFlags?: string[]
 }
 
 export async function callGrok({
@@ -144,14 +153,21 @@ export async function callGrok({
       }
     )
 
-    const tokensUsed = response.data.usage?.total_tokens || 0
+    const usage = response.data.usage ?? {}
+    const inputTokens = usage.prompt_tokens ?? usage.input_tokens ?? 0
+    const outputTokens = usage.completion_tokens ?? usage.output_tokens ?? 0
+    const tokensUsed = (usage.total_tokens ?? (inputTokens + outputTokens)) || 0
+    const costUsd = (inputTokens / 1e6) * GROK_INPUT_PRICE_PER_MILLION + (outputTokens / 1e6) * GROK_OUTPUT_PRICE_PER_MILLION
     const content = response.data.choices?.[0]?.message?.content
 
     if (!content) {
       return {
         success: false,
         error: 'No content received from Grok API',
-        tokensUsed
+        tokensUsed,
+        inputTokens,
+        outputTokens,
+        costUsd,
       }
     }
 
@@ -178,7 +194,10 @@ export async function callGrok({
         return {
           success: false,
           error: `Failed to parse JSON response. Please try again.`,
-          tokensUsed
+          tokensUsed,
+          inputTokens,
+          outputTokens,
+          costUsd,
         }
       }
     }
@@ -190,6 +209,9 @@ export async function callGrok({
         user_id: userId,
         feature_name: feature,
         tokens_used: tokensUsed,
+        input_tokens: inputTokens || null,
+        output_tokens: outputTokens || null,
+        cost_usd: costUsd > 0 ? costUsd : null,
       })
     } catch (dbError) {
       console.error('Failed to log token usage:', dbError)
@@ -203,7 +225,7 @@ export async function callGrok({
       const monitorResult = await monitorOutput(queryStr, parsedData, routePath, userId)
 
       // Educational routes with curated prompts: log flags but do not block
-      const educationalNoBlockRoutes = ['compound-breakdown', 'stack-education']
+      const educationalNoBlockRoutes = ['compound-breakdown', 'stack-education', 'bloodwork-history-analyze']
       const shouldBlock = monitorResult.status === 'HIGH_RISK' && !educationalNoBlockRoutes.includes(routePath)
 
       if (shouldBlock) {
@@ -212,8 +234,12 @@ export async function callGrok({
           success: false,
           error: 'Response under compliance review — content is educational only. Please try again.',
           tokensUsed,
+          inputTokens,
+          outputTokens,
+          costUsd,
           data: undefined,
           _complianceBlocked: true,
+          _complianceFlags: monitorResult.flags,
         }
       }
       if (monitorResult.status === 'HIGH_RISK' && educationalNoBlockRoutes.includes(routePath)) {
@@ -224,12 +250,15 @@ export async function callGrok({
       // Don't fail the request if monitoring fails
     }
 
-    console.log('[Grok] Success:', { feature, userId, tokensUsed })
+    console.log('[Grok] Success:', { feature, userId, tokensUsed, inputTokens, outputTokens, costUsd: costUsd > 0 ? costUsd.toFixed(6) : '0' })
 
     return {
       success: true,
       data: parsedData,
-      tokensUsed
+      tokensUsed,
+      inputTokens,
+      outputTokens,
+      costUsd,
     }
 
   } catch (error: any) {

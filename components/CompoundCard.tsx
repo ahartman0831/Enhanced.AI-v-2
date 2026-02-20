@@ -159,7 +159,11 @@ export function CompoundCard({ compound }: CompoundCardProps) {
     try {
       const res = await fetch(`/api/compounds/${compound.id}/breakdown`)
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to load breakdown')
+      if (!res.ok) {
+        const msg = data.error || 'Failed to load breakdown'
+        const flags = data.flags as string[] | undefined
+        throw new Error(flags?.length ? `${msg} Flagged: ${flags.join(', ')}` : msg)
+      }
       setBreakdown(data)
     } catch (err: unknown) {
       setBreakdownError(err instanceof Error ? err.message : 'Failed to load breakdown')

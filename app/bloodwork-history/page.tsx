@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { TierGate } from '@/components/TierGate'
 import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -18,10 +18,59 @@ import {
   ChevronDown,
   ChevronUp,
   List,
+  Download,
+  Beaker,
+  Trash2,
+  Heart,
+  Pill,
+  Activity,
+  Droplets,
+  Flame,
+  TestTube,
+  MessageCircle,
 } from 'lucide-react'
 import { getTrendIndicator } from '@/lib/bloodwork-trend-indicators'
+import { LineChart, Line, ResponsiveContainer } from 'recharts'
+
+function getMarkerCategoryIcon(category?: string) {
+  switch (category) {
+    case 'cv': return Heart
+    case 'hormonal': return Pill
+    case 'metabolic': return Activity
+    case 'liver': case 'kidney': return Droplets
+    case 'inflammation': return Flame
+    case 'blood': return TestTube
+    default: return BarChart3
+  }
+}
+
+function MiniSparkline({
+  dataPoints,
+  marker,
+  trend,
+}: {
+  dataPoints: Array<{ date: string; value: string; numericValue?: number }>
+  marker: string
+  trend: 'up' | 'down' | 'stable'
+}) {
+  const chartData = dataPoints.map((p) => ({
+    value: (p.numericValue ?? parseFloat(String(p.value).replace(/[^0-9.-]/g, ''))) || 0,
+  }))
+  const ind = getTrendIndicator(marker, trend)
+  const stroke = ind.type === 'positive' ? '#22c55e' : ind.type === 'risk' ? '#ef4444' : '#06b6d4'
+  if (chartData.length === 0) return null
+  return (
+    <div className="h-8 mt-2 w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={chartData} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+          <Line type="monotone" dataKey="value" stroke={stroke} strokeWidth={1.5} dot={false} connectNulls />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
 import { splitByPriority } from '@/lib/bloodwork-prioritized'
-import { TELEHEALTH_PARTNERS, getAffiliateDisclosure, generateAmazonAffiliateLink } from '@/lib/affiliates'
+import { TELEHEALTH_PARTNERS, getAffiliateDisclosure, getBloodworkAffiliateDisclosure, generateAmazonAffiliateLink } from '@/lib/affiliates'
 import { HistoryTimeline } from '@/components/bloodwork/HistoryTimeline'
 import { MarkerTrendCard } from '@/components/bloodwork/MarkerTrendCard'
 import { AnalyzeButton } from '@/components/bloodwork/AnalyzeButton'
@@ -52,18 +101,35 @@ interface BloodworkHistoryData {
 interface MarkerInsight {
   marker: string
   trend: string
+  markerCategory?: 'hormonal' | 'metabolic' | 'cv' | 'liver' | 'kidney' | 'inflammation' | 'blood' | 'other'
   laymanWhatItIs?: string
   laymanWhyMonitor?: string
+  litContext?: string
   observationalRisk?: string
+  referenceRangesTrends?: string
+  stackInteractions?: string
+  prosConsBullets?: { positivePatterns?: string[]; riskPatterns?: string[] }
   commonlyDiscussedSupports?: string
+  deepDiveSnippet?: string
+  appTieIn?: string
   amazonProductHint?: string
+  shopCategoryHint?: string
 }
 
 interface AnalysisResult {
+  id?: string | null
   trendSummary?: string
   patternNotes?: string[]
   markerInsights?: MarkerInsight[]
   disclaimer?: string
+}
+
+interface SavedAnalysis {
+  id: string
+  trendSummary: string
+  patternNotes: string[]
+  markerInsights: MarkerInsight[]
+  createdAt: string
 }
 
 export default function BloodworkHistoryPage() {
@@ -75,6 +141,11 @@ export default function BloodworkHistoryPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisError, setAnalysisError] = useState<string | null>(null)
   const [showAnalysisSection, setShowAnalysisSection] = useState(true)
+  const [exportingPdf, setExportingPdf] = useState(false)
+  const [savedAnalyses, setSavedAnalyses] = useState<SavedAnalysis[]>([])
+  const [selectedAnalysisId, setSelectedAnalysisId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const hasAutoLoadedRef = useRef(false)
 
   const selectedDates = useMemo(() => {
     if (!data?.reports) return new Set<string>()
@@ -107,6 +178,31 @@ export default function BloodworkHistoryPage() {
     return splitByPriority(filteredSeries, data?.flaggedMarkers || [])
   }, [filteredSeries, data?.flaggedMarkers])
 
+  const fetchSavedAnalyses = useCallback(async () => {
+    try {
+      const res = await fetch('/api/bloodwork-history/analyses')
+      if (res.ok) {
+        const { analyses } = await res.json()
+        setSavedAnalyses(analyses ?? [])
+      }
+    } catch {
+      // Ignore
+    }
+  }, [])
+
+  const handleLoadSaved = useCallback((a: SavedAnalysis) => {
+    setAnalysisResult({
+      id: a.id,
+      trendSummary: a.trendSummary,
+      patternNotes: a.patternNotes,
+      markerInsights: a.markerInsights,
+      disclaimer: 'Educational only—not medical advice. Individual variability high. Consult a physician.',
+    })
+    setSelectedAnalysisId(a.id)
+    setShowAnalysisSection(true)
+    setAnalysisError(null)
+  }, [])
+
   useEffect(() => {
     const fetchHistory = async () => {
       setLoading(true)
@@ -128,6 +224,22 @@ export default function BloodworkHistoryPage() {
     fetchHistory()
   }, [])
 
+  useEffect(() => {
+    fetchSavedAnalyses()
+  }, [fetchSavedAnalyses])
+
+  // Auto-load most recent saved analysis on first load when user has saved analyses
+  useEffect(() => {
+    if (
+      savedAnalyses.length > 0 &&
+      !analysisResult &&
+      !hasAutoLoadedRef.current
+    ) {
+      hasAutoLoadedRef.current = true
+      handleLoadSaved(savedAnalyses[0])
+    }
+  }, [savedAnalyses, analysisResult, handleLoadSaved])
+
   const toggleReport = (id: string) => {
     setSelectedReportIds((prev) => {
       const next = new Set(prev)
@@ -137,19 +249,113 @@ export default function BloodworkHistoryPage() {
     })
   }
 
+  const handleExportPdf = useCallback(async () => {
+    if (!analysisResult) return
+    setExportingPdf(true)
+    try {
+      const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib')
+      const pdfDoc = await PDFDocument.create()
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica)
+      const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+      let y = 750
+      const pageHeight = 750
+      const lineHeight = 14
+      const margin = 50
+
+      const addText = (text: string, size = 10, bold = false) => {
+        const f = bold ? fontBold : font
+        const page = pdfDoc.getPages()[pdfDoc.getPageCount() - 1]
+        if (y < margin + lineHeight) {
+          pdfDoc.addPage()
+          y = pageHeight - margin
+        }
+        page.drawText(text, { x: margin, y, size, font: f, color: rgb(0.1, 0.1, 0.1) })
+        y -= lineHeight
+      }
+
+      pdfDoc.addPage()
+      addText('Bloodwork Trend Analysis', 16, true)
+      addText('Educational purposes only—not medical advice. Consult a physician.', 9)
+      y -= 8
+
+      if (analysisResult.trendSummary) {
+        addText('Trend Summary', 12, true)
+        addText(analysisResult.trendSummary, 10)
+        y -= 8
+      }
+
+      if (analysisResult.patternNotes?.length) {
+        addText('Pattern Notes', 12, true)
+        analysisResult.patternNotes.forEach((n) => addText(`• ${n}`, 10))
+        y -= 8
+      }
+
+      if (analysisResult.markerInsights?.length) {
+        addText('Marker Insights', 12, true)
+        analysisResult.markerInsights.forEach((m) => {
+          addText(`${m.marker} (${m.trend})`, 10, true)
+          if (m.laymanWhatItIs) addText(`What: ${m.laymanWhatItIs}`, 9)
+          if (m.observationalRisk) addText(`Risk: ${m.observationalRisk}`, 9)
+          y -= 4
+        })
+      }
+
+      addText('', 9)
+      addText('Generated by Enhanced.AI — Educational only. Individual variability high.', 8)
+      const pdfBytes = await pdfDoc.save()
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `bloodwork-trends-${new Date().toISOString().slice(0, 10)}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('PDF export failed:', err)
+    } finally {
+      setExportingPdf(false)
+    }
+  }, [analysisResult])
+
   const handleAnalyzeClick = async () => {
     setIsAnalyzing(true)
     setAnalysisError(null)
     try {
       const res = await fetch('/api/bloodwork-history/analyze', { method: 'POST' })
       const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Analysis failed')
+      if (!res.ok) {
+        const msg = json.error || 'Analysis failed'
+        const flags = json.flags as string[] | undefined
+        throw new Error(flags?.length ? `${msg} Flagged: ${flags.join(', ')}` : msg)
+      }
       setAnalysisResult(json)
+      setSelectedAnalysisId(json.id ?? null)
       setShowAnalysisSection(true)
+      fetchSavedAnalyses()
     } catch (err) {
       setAnalysisError(err instanceof Error ? err.message : 'Analysis failed')
     } finally {
       setIsAnalyzing(false)
+    }
+  }
+
+  const handleDeleteSaved = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!confirm('Delete this saved analysis? This cannot be undone.')) return
+    setDeletingId(id)
+    try {
+      const res = await fetch(`/api/bloodwork-history/analyses/${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        setSavedAnalyses((prev) => prev.filter((a) => a.id !== id))
+        if (selectedAnalysisId === id) {
+          setAnalysisResult(null)
+          setSelectedAnalysisId(null)
+        }
+      }
+    } catch {
+      // Ignore
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -241,22 +447,34 @@ export default function BloodworkHistoryPage() {
           </AlertDescription>
         </Alert>
 
-        {/* Analyze Trends with AI – user-initiated only */}
+        {/* Re-analyze Trends with AI – user-initiated only */}
         <Card className="border-cyan-500/30 bg-cyan-500/5 dark:bg-cyan-950/20">
           <CardContent className="flex flex-col sm:flex-row items-center justify-between gap-4 py-6">
             <div>
-              <h3 className="font-semibold text-foreground">Get AI Insights on Patterns, Risks & Mitigations</h3>
+              <h3 className="font-semibold text-foreground">
+                {analysisResult ? 'Re-analyze Trends with AI' : 'Get AI Insights on Patterns, Risks & Mitigations'}
+              </h3>
               <p className="text-sm text-muted-foreground mt-1">
-                User-initiated analysis. No automatic AI calls on page load.
+                User-initiated analysis. AI processes history for custom patternNotes (e.g., serial hsCRP → stable).
               </p>
             </div>
-            <AnalyzeButton
-              onClick={handleAnalyzeClick}
-              disabled={isAnalyzing || data.series.length === 0}
-              isAnalyzing={isAnalyzing}
-              hasResults={!!analysisResult}
-              title={data.series.length === 0 ? 'Add bloodwork with markers to analyze trends' : undefined}
-            />
+            <div className="flex flex-wrap gap-2">
+              <AnalyzeButton
+                onClick={handleAnalyzeClick}
+                disabled={isAnalyzing || data.series.length === 0}
+                isAnalyzing={isAnalyzing}
+                hasResults={!!analysisResult}
+                title={data.series.length === 0 ? 'Add bloodwork with markers to analyze trends' : undefined}
+              />
+              {analysisResult && (
+                <Button variant="outline" size="sm" asChild>
+                  <Link href="/supplement-analyzer" className="flex items-center gap-1">
+                    <Beaker className="h-4 w-4" />
+                    Analyze Stack Impact
+                  </Link>
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -265,6 +483,59 @@ export default function BloodworkHistoryPage() {
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>{analysisError}</AlertDescription>
           </Alert>
+        )}
+
+        {/* Saved Analyses */}
+        {savedAnalyses.length > 0 && (
+          <Card className="border-cyan-500/20">
+            <CardHeader>
+              <CardTitle className="text-base">Saved Analyses</CardTitle>
+              <CardDescription>
+                Your trend analyses are saved automatically. Click to view or delete.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {savedAnalyses.map((a) => (
+                  <div
+                    key={a.id}
+                    onClick={() => handleLoadSaved(a)}
+                    className={`flex items-center justify-between gap-2 rounded-lg border p-3 cursor-pointer transition-colors hover:bg-muted/50 ${
+                      selectedAnalysisId === a.id ? 'border-cyan-500/50 bg-cyan-500/5' : 'border-border'
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">
+                        {a.trendSummary?.slice(0, 80) || 'Trend analysis'}…
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {new Date(a.createdAt).toLocaleDateString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => handleDeleteSaved(a.id, e)}
+                      disabled={deletingId === a.id}
+                      className="shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      {deletingId === a.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* AI Analysis Results */}
@@ -318,45 +589,151 @@ export default function BloodworkHistoryPage() {
               {analysisResult.markerInsights?.length > 0 && (
                 <div>
                   <h4 className="font-medium mb-3">Marker Insights & Commonly Discussed Supports</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {analysisResult.markerInsights.map((insight, i) => (
-                      <Card key={i} className="border-cyan-500/10">
-                        <CardContent className="pt-4 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium">{insight.marker}</span>
-                            <span className={`text-xs px-2 py-0.5 rounded ${
-                              insight.trend === 'up' ? 'bg-amber-500/20' : insight.trend === 'down' ? 'bg-cyan-500/20' : 'bg-muted'
-                            }`}>
-                              {insight.trend === 'up' ? '↑' : insight.trend === 'down' ? '↓' : '→'}
-                            </span>
-                          </div>
-                          {insight.laymanWhatItIs && (
-                            <p className="text-xs"><strong>What it is:</strong> {insight.laymanWhatItIs}</p>
-                          )}
-                          {insight.laymanWhyMonitor && (
-                            <p className="text-xs"><strong>Why monitor:</strong> {insight.laymanWhyMonitor}</p>
-                          )}
-                          {insight.observationalRisk && (
-                            <p className="text-xs text-amber-700 dark:text-amber-400 italic">{insight.observationalRisk}</p>
-                          )}
-                          {insight.commonlyDiscussedSupports && (
-                            <p className="text-xs text-muted-foreground">{insight.commonlyDiscussedSupports}</p>
-                          )}
-                          {insight.amazonProductHint && (
-                            <Button variant="outline" size="sm" className="mt-2" asChild>
-                              <a href={generateAmazonAffiliateLink(insight.amazonProductHint)} target="_blank" rel="noopener noreferrer">
-                                Explore {insight.amazonProductHint} <ExternalLink className="h-3 w-3 ml-1" />
-                              </a>
-                            </Button>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
+                  <p className="text-xs text-muted-foreground mb-4">
+                    Scrollable cards with expandable Deep Dive. Observational only—individual variability high. Consult physician.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[600px] overflow-y-auto pr-2">
+                    {analysisResult.markerInsights.map((insight, i) => {
+                      const CategoryIcon = getMarkerCategoryIcon(insight.markerCategory)
+                      const insightMarker = insight.marker?.toLowerCase() ?? ''
+                      const seriesForChart = prioritized.find(
+                        (s) =>
+                          insightMarker && (
+                            s.marker.toLowerCase().includes(insightMarker) ||
+                            insightMarker.includes(s.marker.toLowerCase())
+                          )
+                      )
+                      return (
+                        <Card key={i} className="border-cyan-500/10 shrink-0">
+                          <CardContent className="p-4">
+                            <div className="flex items-start gap-2 mb-2">
+                              <CategoryIcon className="h-4 w-4 text-cyan-500 shrink-0 mt-0.5" />
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="font-medium text-sm">{insight.marker}</span>
+                                  <span className={`text-xs px-2 py-0.5 rounded shrink-0 ${
+                                    insight.trend === 'up' ? 'bg-amber-500/20 text-amber-700 dark:text-amber-400' : insight.trend === 'down' ? 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-400' : 'bg-muted'
+                                  }`}>
+                                    {insight.trend === 'up' ? '↑' : insight.trend === 'down' ? '↓' : '→'}
+                                  </span>
+                                </div>
+                                {seriesForChart && seriesForChart.dataPoints.length > 0 && (
+                                  <MiniSparkline
+                                    dataPoints={seriesForChart.dataPoints}
+                                    marker={seriesForChart.marker}
+                                    trend={seriesForChart.trend}
+                                  />
+                                )}
+                              </div>
+                            </div>
+                            <Accordion type="multiple" className="w-full">
+                              <AccordionItem value="summary" className="border-none">
+                                <AccordionTrigger className="py-2 text-xs font-medium hover:no-underline">
+                                  What It Is & Why Monitor
+                                </AccordionTrigger>
+                                <AccordionContent className="pb-2 space-y-2">
+                                  {insight.laymanWhatItIs && (
+                                    <p className="text-xs text-muted-foreground">{insight.laymanWhatItIs}</p>
+                                  )}
+                                  {insight.laymanWhyMonitor && (
+                                    <p className="text-xs text-muted-foreground"><strong>Why monitor:</strong> {insight.laymanWhyMonitor}</p>
+                                  )}
+                                </AccordionContent>
+                              </AccordionItem>
+                              <AccordionItem value="deepdive" className="border-none">
+                                <AccordionTrigger className="py-2 text-xs font-medium hover:no-underline">
+                                  Deep Dive (Lit & Trends)
+                                </AccordionTrigger>
+                                <AccordionContent className="pb-2 space-y-2">
+                                  {insight.litContext && (
+                                    <p className="text-xs text-cyan-700 dark:text-cyan-400">{insight.litContext}</p>
+                                  )}
+                                  {insight.referenceRangesTrends && (
+                                    <p className="text-xs text-muted-foreground">{insight.referenceRangesTrends}</p>
+                                  )}
+                                  {insight.stackInteractions && (
+                                    <p className="text-xs text-muted-foreground italic">{insight.stackInteractions}</p>
+                                  )}
+                                  {insight.prosConsBullets && (
+                                    <div className="space-y-1">
+                                      {insight.prosConsBullets.positivePatterns?.length ? (
+                                        <div>
+                                          <span className="text-xs font-medium text-green-600 dark:text-green-400">Positive patterns: </span>
+                                          <ul className="text-xs text-muted-foreground list-disc list-inside">
+                                            {insight.prosConsBullets.positivePatterns.map((p, j) => (
+                                              <li key={j}>{p}</li>
+                                            ))}
+                                          </ul>
+                                        </div>
+                                      ) : null}
+                                      {insight.prosConsBullets.riskPatterns?.length ? (
+                                        <div>
+                                          <span className="text-xs font-medium text-amber-600 dark:text-amber-400">Risk patterns: </span>
+                                          <ul className="text-xs text-muted-foreground list-disc list-inside">
+                                            {insight.prosConsBullets.riskPatterns.map((p, j) => (
+                                              <li key={j}>{p}</li>
+                                            ))}
+                                          </ul>
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  )}
+                                  {insight.observationalRisk && (
+                                    <p className="text-xs text-amber-700 dark:text-amber-400 italic">{insight.observationalRisk}</p>
+                                  )}
+                                  {insight.deepDiveSnippet && (
+                                    <p className="text-xs text-muted-foreground border-l-2 border-cyan-500/30 pl-2 italic">{insight.deepDiveSnippet}</p>
+                                  )}
+                                </AccordionContent>
+                              </AccordionItem>
+                            </Accordion>
+                            {insight.commonlyDiscussedSupports && (
+                              <p className="text-xs text-muted-foreground mt-2">{insight.commonlyDiscussedSupports}</p>
+                            )}
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              {insight.appTieIn && (
+                                <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
+                                  <Link href="/supplement-analyzer" className="flex items-center gap-1">
+                                    <Beaker className="h-3 w-3" />
+                                    Supplement Analyzer
+                                  </Link>
+                                </Button>
+                              )}
+                              {insight.shopCategoryHint && (
+                                <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
+                                  <Link href="/shop" className="flex items-center gap-1">{insight.shopCategoryHint}</Link>
+                                </Button>
+                              )}
+                              {insight.amazonProductHint && (
+                                <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
+                                  <a href={generateAmazonAffiliateLink(insight.amazonProductHint)} target="_blank" rel="noopener noreferrer">
+                                    Explore {insight.amazonProductHint} <ExternalLink className="h-3 w-3 ml-1" />
+                                  </a>
+                                </Button>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
                   </div>
+                  <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
+                    <MessageCircle className="h-3 w-3" />
+                    Discuss patterns in app community—observational shares only.
+                  </p>
                 </div>
               )}
 
               <div className="flex flex-wrap gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportPdf}
+                  disabled={exportingPdf}
+                >
+                  {exportingPdf ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Download className="h-3 w-3 mr-1" />}
+                  Export PDF for Doctor
+                </Button>
                 <Button variant="outline" size="sm" asChild>
                   <a href={TELEHEALTH_PARTNERS.quest} target="_blank" rel="noopener noreferrer">
                     Quest Diagnostics <ExternalLink className="h-3 w-3 ml-1" />
@@ -368,8 +745,10 @@ export default function BloodworkHistoryPage() {
                   </a>
                 </Button>
               </div>
+              <p className="text-xs text-muted-foreground italic">Discuss patterns in app community (observational only).</p>
               <p className="text-xs text-muted-foreground italic">{analysisResult.disclaimer}</p>
               <p className="text-xs text-muted-foreground">{getAffiliateDisclosure()}</p>
+              <p className="text-xs text-muted-foreground">{getBloodworkAffiliateDisclosure()}</p>
             </CardContent>
           </Card>
         )}

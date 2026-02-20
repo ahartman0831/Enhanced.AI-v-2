@@ -152,7 +152,11 @@ export default function StackEducationPage() {
         })
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to analyze')
+      if (!res.ok) {
+        const msg = data.error || 'Failed to analyze'
+        const flags = data.flags as string[] | undefined
+        throw new Error(flags?.length ? `${msg} Flagged: ${flags.join(', ')}` : msg)
+      }
       setResult(data.data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
@@ -199,7 +203,7 @@ export default function StackEducationPage() {
                     Select Compounds to Analyze
                   </CardTitle>
                   <CardDescription>
-                    Choose any compounds from the full database. Grok will provide neutral, factual education on each compound and combo-level patterns.
+                    Choose any compounds from the full database. AI will provide neutral, factual education on each compound and combo-level patterns.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">

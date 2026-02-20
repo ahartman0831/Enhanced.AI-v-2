@@ -162,7 +162,7 @@ Please analyze this bloodwork data and provide the educational analysis in the s
     if (!grokResult.success) {
       const status = grokResult._complianceBlocked ? 422 : 500
       return NextResponse.json(
-        { error: grokResult.error || 'Failed to analyze bloodwork' },
+        { error: grokResult.error || 'Failed to analyze bloodwork', flags: grokResult._complianceFlags },
         { status }
       )
     }

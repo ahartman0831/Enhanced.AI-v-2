@@ -67,7 +67,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { age, sex, weight_lbs, goals, experience_level, risk_tolerance } = body
+    const { age, sex, weight_lbs, goals, experience_level, risk_tolerance, current_compounds_json } = body
 
     // Only update user-editable columns (never overwrite subscription_tier, stripe_*, etc.)
     const payload: Record<string, unknown> = {
@@ -80,6 +80,7 @@ export async function PUT(request: NextRequest) {
     if (goals !== undefined) payload.goals = goals === '' || goals === null ? null : String(goals)
     if (experience_level !== undefined) payload.experience_level = experience_level === '' || experience_level === null ? null : String(experience_level)
     if (risk_tolerance !== undefined) payload.risk_tolerance = risk_tolerance === '' || risk_tolerance === null ? null : String(risk_tolerance)
+    if (current_compounds_json !== undefined) payload.current_compounds_json = current_compounds_json === null || current_compounds_json === '' ? null : current_compounds_json
 
     const { data, error } = await supabase
       .from('profiles')

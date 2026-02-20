@@ -75,7 +75,7 @@ Remember: This is educational analysis only, not medical advice.`
     if (!grokResult.success) {
       const status = grokResult._complianceBlocked ? 422 : 500
       return NextResponse.json(
-        { error: grokResult.error || 'Failed to analyze photos' },
+        { error: grokResult.error || 'Failed to analyze photos', flags: grokResult._complianceFlags },
         { status }
       )
     }

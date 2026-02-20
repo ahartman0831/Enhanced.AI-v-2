@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { getSubscriptionTier, requireTier } from '@/lib/subscription-gate'
-import { callGrok } from '@/lib/grok'
+import { callGrok, loadPrompt } from '@/lib/grok'
 import {
   extractMarkersFromReport,
   aggregateMarkerSeries,
 } from '@/lib/bloodwork-history'
+import { computeBloodworkContext } from '@/lib/bloodwork-context'
 
 export const dynamic = 'force-dynamic'
 
@@ -69,11 +70,20 @@ export async function POST(request: NextRequest) {
       history: s.dataPoints.map((p) => ({ date: p.date, value: p.value })),
     }))
 
-    const prompt = `The user has bloodwork history with the following marker trends. Analyze and provide educational insights.
+    const bloodworkContext = await computeBloodworkContext(user.id)
+    const contextBlock: string[] = []
+    if (bloodworkContext.compoundContext) {
+      contextBlock.push(`## Stack Context (observational cross-ref only)\n${bloodworkContext.compoundContext}`)
+    }
+    if (bloodworkContext.userProfileContext) {
+      contextBlock.push(`## User Profile (reference ranges only)\n${bloodworkContext.userProfileContext}`)
+    }
+    const contextSection = contextBlock.length > 0 ? `\n${contextBlock.join('\n\n')}\n` : ''
 
-${JSON.stringify(seriesForPrompt, null, 2)}
-
-Provide a JSON object with trendSummary, patternNotes (array), and markerInsights (array of objects with marker, trend, laymanWhatItIs, laymanWhyMonitor, observationalRisk, commonlyDiscussedSupports, amazonProductHint). Use ONLY community/literature framing. NEVER personalize. Include Quest/LetsGetChecked in patternNotes. Return ONLY valid JSON.`
+    const promptTemplate = await loadPrompt('bloodwork_history_analyze_prompt')
+    const prompt = promptTemplate
+      ? `${promptTemplate}${contextSection}\n## Marker Trends Data\n\n${JSON.stringify(seriesForPrompt, null, 2)}`
+      : `The user has bloodwork history with the following marker trends. Analyze and provide educational insights. Use ONLY community/literature framing. NEVER personalize. Include "educational purposes only" and "consult a physician" in patternNotes.\n\n${JSON.stringify(seriesForPrompt, null, 2)}\n\nProvide a JSON object with trendSummary, patternNotes (array), and markerInsights (array of objects with marker, trend, laymanWhatItIs, laymanWhyMonitor, observationalRisk, commonlyDiscussedSupports, amazonProductHint). Return ONLY valid JSON.`
 
     const grokResult = await callGrok({
       prompt,
@@ -84,7 +94,7 @@ Provide a JSON object with trendSummary, patternNotes (array), and markerInsight
     if (!grokResult.success) {
       const status = grokResult._complianceBlocked ? 422 : 500
       return NextResponse.json(
-        { error: grokResult.error || 'AI analysis failed' },
+        { error: grokResult.error || 'AI analysis failed', flags: grokResult._complianceFlags },
         { status }
       )
     }
@@ -94,7 +104,23 @@ Provide a JSON object with trendSummary, patternNotes (array), and markerInsight
     const trendSummary = typeof data?.trendSummary === 'string' ? data.trendSummary : ''
     const markerInsights = Array.isArray(data?.markerInsights) ? data.markerInsights : []
 
+    const { data: savedAnalysis, error: saveError } = await supabase
+      .from('bloodwork_history_analyses')
+      .insert({
+        user_id: user.id,
+        trend_summary: trendSummary,
+        pattern_notes: patternNotes,
+        marker_insights: markerInsights,
+      })
+      .select('id')
+      .single()
+
+    if (saveError) {
+      console.error('[BloodworkHistoryAnalyze] Save error:', saveError)
+    }
+
     return NextResponse.json({
+      id: savedAnalysis?.id ?? null,
       trendSummary,
       patternNotes,
       markerInsights,

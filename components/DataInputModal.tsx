@@ -22,59 +22,11 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { SideEffectsCompoundInput } from '@/components/SideEffectsCompoundInput'
-import { AlertTriangle, Loader2, Plus, X, CheckCircle, Pill, Activity, Shield } from 'lucide-react'
+import { CompoundDosageSection, DOSAGE_UNITS, DOSAGE_FREQUENCIES, DOSAGE_ROUTES, DURATION_UNITS } from '@/components/CompoundDosageSection'
+import { AlertTriangle, Loader2, Plus, X, CheckCircle, Activity, Shield } from 'lucide-react'
 import { serializeProtocol } from '@/lib/forecast-data-types'
 import type { ProtocolInput } from '@/lib/forecast-data-types'
-
-const AGE_RANGES = [
-  { value: '', label: 'Prefer not to say' },
-  { value: '18-30', label: '18-30' },
-  { value: '31-40', label: '31-40' },
-  { value: '41-50', label: '41-50' },
-  { value: '50+', label: '50+' },
-] as const
-
-const EXPERIENCE_LEVELS = [
-  { value: '', label: 'Prefer not to say' },
-  { value: 'Beginner', label: 'Beginner' },
-  { value: 'Intermediate', label: 'Intermediate' },
-  { value: 'Advanced', label: 'Advanced' },
-] as const
-
-const PRIMARY_GOALS = [
-  { value: '', label: 'Prefer not to say' },
-  { value: 'Bulk', label: 'Bulk' },
-  { value: 'Recomp', label: 'Recomp' },
-  { value: 'Cut', label: 'Cut' },
-] as const
-
-const DOSAGE_UNITS = ['mg', 'mcg', 'iu', 'g', 'ml', 'units', 'other'] as const
-const DOSAGE_FREQUENCIES = [
-  { value: 'daily', label: 'Daily' },
-  { value: 'twice_daily', label: 'Twice daily' },
-  { value: 'eod', label: 'EOD (every other day)' },
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'twice_weekly', label: 'Twice weekly' },
-  { value: 'every_3_days', label: 'Every 3 days' },
-  { value: 'other', label: 'Other' },
-] as const
-
-const DOSAGE_ROUTES = [
-  { value: 'im', label: 'Intramuscular (IM)' },
-  { value: 'subq', label: 'Subcutaneous (Sub-Q)' },
-  { value: 'oral', label: 'Oral' },
-  { value: 'transdermal', label: 'Transdermal' },
-  { value: 'nasal', label: 'Nasal' },
-  { value: 'other', label: 'Other' },
-] as const
-
-const DURATION_UNITS = [
-  { value: 'days', label: 'Days' },
-  { value: 'weeks', label: 'Weeks' },
-  { value: 'months', label: 'Months' },
-  { value: 'years', label: 'Years' },
-] as const
+import { compoundsDataDiffers, type CurrentCompoundsData } from '@/lib/profile-compounds'
 
 const COMMON_SIDE_EFFECTS = [
   'Hair Loss',
@@ -214,12 +166,11 @@ export function DataInputModal({
   const [compoundDosages, setCompoundDosages] = useState<Record<string, { amount: string; unit: string; frequency: string; route: string; durationValue: string; durationUnit: string }>>({})
   const [dosageNotes, setDosageNotes] = useState('')
   const [optionalNotes, setOptionalNotes] = useState('')
-  const [ageRange, setAgeRange] = useState('')
-  const [experienceLevel, setExperienceLevel] = useState('')
-  const [primaryGoal, setPrimaryGoal] = useState('')
   const [isLoadingPrefill, setIsLoadingPrefill] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [showSkipConfirm, setShowSkipConfirm] = useState(false)
+  const [profileCompounds, setProfileCompounds] = useState<CurrentCompoundsData | null>(null)
+  const [showSaveToProfileConfirm, setShowSaveToProfileConfirm] = useState(false)
 
   const buildDosagesString = useCallback((): string => {
     const parts: string[] = []
@@ -249,11 +200,32 @@ export function DataInputModal({
   const fetchPrefillData = useCallback(async () => {
     setIsLoadingPrefill(true)
     try {
-      const [sideEffectsRes, profileRes] = await Promise.all([
-        fetch('/api/side-effects'),
-        fetch('/api/profile'),
-      ])
+      // Try profile's current compounds first (prefills confirm dialog)
+      const profileRes = await fetch('/api/profile')
+      if (profileRes.ok) {
+        const profileData = await profileRes.json()
+        const cc = profileData.current_compounds_json as CurrentCompoundsData | null
+        if (cc?.compounds?.length) {
+          setProfileCompounds(cc)
+          setSelectedCompounds(cc.compounds)
+          setCompoundDosages(cc.compoundDosages ?? {})
+          setDosageNotes(cc.dosageNotes ?? '')
+          // Side effects still from side-effects API
+          const sideEffectsRes = await fetch('/api/side-effects')
+          if (sideEffectsRes.ok) {
+            const { data } = await sideEffectsRes.json()
+            const logs = (data ?? []) as SideEffectLog[]
+            const latest = logs[0]
+            if (latest) setSelectedSideEffects(latest.side_effects ?? [])
+          }
+          setIsLoadingPrefill(false)
+          return
+        }
+        setProfileCompounds(null)
+      }
 
+      // Fallback: side-effects
+      const sideEffectsRes = await fetch('/api/side-effects')
       if (sideEffectsRes.ok) {
         const { data } = await sideEffectsRes.json()
         const logs = (data ?? []) as SideEffectLog[]
@@ -266,29 +238,6 @@ export function DataInputModal({
           setDosageNotes((latest.additional_supplements ?? additionalNotes) || '')
           setCompoundDosages(parsed)
         }
-      }
-
-      if (profileRes.ok) {
-        const profile = (await profileRes.json()) as {
-          age?: number | null
-          experience_level?: string | null
-          goals?: string | null
-        }
-        if (profile?.age != null) {
-          const a = profile.age
-          if (a >= 18 && a <= 30) setAgeRange('18-30')
-          else if (a >= 31 && a <= 40) setAgeRange('31-40')
-          else if (a >= 41 && a <= 50) setAgeRange('41-50')
-          else if (a >= 51) setAgeRange('50+')
-        }
-        const exp = (profile?.experience_level ?? '').toLowerCase()
-        if (exp === 'beginner') setExperienceLevel('Beginner')
-        else if (exp === 'intermediate') setExperienceLevel('Intermediate')
-        else if (exp === 'advanced') setExperienceLevel('Advanced')
-        const goalsStr = (profile?.goals ?? '').toLowerCase()
-        if (goalsStr.includes('bulk')) setPrimaryGoal('Bulk')
-        else if (goalsStr.includes('recomp')) setPrimaryGoal('Recomp')
-        else if (goalsStr.includes('cut')) setPrimaryGoal('Cut')
       }
     } catch {
       // Ignore
@@ -350,6 +299,11 @@ export function DataInputModal({
     return d && d.amount.trim() !== ''
   })
 
+  const doSubmit = async (payload: DataInputModalPayload) => {
+    await onSubmit(payload)
+    onOpenChange(false)
+  }
+
   const handleSaveAndGenerate = async () => {
     if (selectedSideEffects.length === 0) {
       setSaveError('Please add at least one side effect.')
@@ -360,6 +314,18 @@ export function DataInputModal({
       return
     }
     setSaveError(null)
+
+    const currentData = {
+      compounds: selectedCompounds,
+      compoundDosages,
+      dosageNotes,
+    }
+    const differs = compoundsDataDiffers(profileCompounds, currentData)
+    if (differs) {
+      setShowSaveToProfileConfirm(true)
+      return
+    }
+
     try {
       const allNotes = [dosageNotes.trim(), optionalNotes.trim()].filter(Boolean).join('\n\n')
       const protocolObj: ProtocolInput = {
@@ -377,13 +343,39 @@ export function DataInputModal({
         }),
         notes: allNotes || undefined,
       }
+      const payload: DataInputModalPayload = { protocolData: serializeProtocol(protocolObj) }
+      await doSubmit(payload)
+    } catch (err: unknown) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save and generate')
+    }
+  }
 
-      const payload: DataInputModalPayload = {
-        protocolData: serializeProtocol(protocolObj),
+  const handleSaveToProfileChoice = async (saveToProfile: boolean) => {
+    setShowSaveToProfileConfirm(false)
+    try {
+      if (saveToProfile) {
+        const res = await fetch('/api/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            current_compounds_json: {
+              compounds: selectedCompounds,
+              compoundDosages,
+              dosageNotes: dosageNotes.trim() || undefined,
+            },
+          }),
+        })
+        if (!res.ok) throw new Error('Failed to save to profile')
       }
-
-      await onSubmit(payload)
-      onOpenChange(false)
+      const allNotes = [dosageNotes.trim(), optionalNotes.trim()].filter(Boolean).join('\n\n')
+      const protocolObj: ProtocolInput = {
+        compounds: selectedCompounds.map((name) => {
+          const d = compoundDosages[name] ?? { amount: '', unit: 'mg', frequency: 'weekly', route: 'im', durationValue: '', durationUnit: 'weeks' }
+          return { name, dosage: d.amount, unit: d.unit, frequency: d.frequency, route: d.route, durationValue: d.durationValue, durationUnit: d.durationUnit }
+        }),
+        notes: allNotes || undefined,
+      }
+      await doSubmit({ protocolData: serializeProtocol(protocolObj) })
     } catch (err: unknown) {
       setSaveError(err instanceof Error ? err.message : 'Failed to save and generate')
     }
@@ -436,140 +428,20 @@ export function DataInputModal({
             </div>
           ) : (
             <>
-              {/* Compounds */}
-              <div className="space-y-3">
-                <Label className="flex items-center gap-2">
-                  <Pill className="h-4 w-4" />
-                  Compounds
-                </Label>
-                <SideEffectsCompoundInput
-                  onAdd={addCompound}
-                  existingNames={selectedCompounds}
-                  disabled={isSubmitting}
-                />
-                {selectedCompounds.length > 0 && (
-                  <>
-                    <p className="text-xs text-muted-foreground pt-2">
-                      Amount, unit, frequency, route, and length of time planning to use are required for each compound.
-                    </p>
-                    <div className="pt-2 border-t overflow-x-auto">
-                      <table className="w-full min-w-[640px] text-sm">
-                        <thead>
-                          <tr className="border-b text-left text-muted-foreground">
-                            <th className="py-2 pr-2 font-medium">Compound</th>
-                            <th className="py-2 pr-2 font-medium">Amount <span className="text-destructive">*</span></th>
-                            <th className="py-2 pr-2 font-medium">Unit <span className="text-destructive">*</span></th>
-                            <th className="py-2 pr-2 font-medium">Frequency <span className="text-destructive">*</span></th>
-                            <th className="py-2 pr-2 font-medium">Route</th>
-                            <th className="py-2 pr-2 font-medium">Length of time <span className="text-destructive">*</span></th>
-                            <th className="py-2 w-8"></th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                        {selectedCompounds.map((name) => {
-                          const d = compoundDosages[name] ?? { amount: '', unit: 'mg', frequency: 'weekly', route: 'im', durationValue: '', durationUnit: 'weeks' }
-                          return (
-                            <tr key={name} className="border-b last:border-0">
-                              <td className="py-2 pr-2 font-medium align-top">{name}</td>
-                              <td className="py-2 pr-2 align-top">
-                                <Input
-                                  type="text"
-                                  inputMode="decimal"
-                                  placeholder="e.g. 250"
-                                  value={d.amount}
-                                  onChange={(e) => updateCompoundDosage(name, 'amount', e.target.value)}
-                                  className="h-8 w-20"
-                                />
-                              </td>
-                              <td className="py-2 pr-2 align-top">
-                                <Select value={d.unit} onValueChange={(v) => updateCompoundDosage(name, 'unit', v)}>
-                                  <SelectTrigger className="h-8 w-16">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {DOSAGE_UNITS.map((u) => (
-                                      <SelectItem key={u} value={u}>{u}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </td>
-                              <td className="py-2 pr-2 align-top">
-                                <Select value={d.frequency} onValueChange={(v) => updateCompoundDosage(name, 'frequency', v)}>
-                                  <SelectTrigger className="h-8 w-28">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {DOSAGE_FREQUENCIES.map((f) => (
-                                      <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </td>
-                              <td className="py-2 pr-2 align-top">
-                                <Select value={d.route} onValueChange={(v) => updateCompoundDosage(name, 'route', v)}>
-                                  <SelectTrigger className="h-8 w-20">
-                                    <SelectValue placeholder="Route" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {DOSAGE_ROUTES.map((r) => (
-                                      <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </td>
-                              <td className="py-2 pr-2 align-top">
-                                <div className="flex gap-1 items-center">
-                                  <Input
-                                    type="text"
-                                    inputMode="numeric"
-                                    placeholder="e.g. 12"
-                                    value={d.durationValue ?? ''}
-                                    onChange={(e) => updateCompoundDosage(name, 'durationValue', e.target.value)}
-                                    className="h-8 w-14"
-                                  />
-                                  <Select value={d.durationUnit ?? 'weeks'} onValueChange={(v) => updateCompoundDosage(name, 'durationUnit', v)}>
-                                    <SelectTrigger className="h-8 w-20">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {DURATION_UNITS.map((u) => (
-                                        <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <p className="text-xs text-muted-foreground mt-0.5">Time used without break</p>
-                              </td>
-                              <td className="py-2 align-top">
-                                <button
-                                  type="button"
-                                  onClick={() => removeCompound(name)}
-                                  className="text-muted-foreground hover:text-destructive p-1"
-                                  aria-label={`Remove ${name}`}
-                                >
-                                  <X className="h-3 w-3" />
-                                </button>
-                              </td>
-                            </tr>
-                          )
-                        })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                )}
-
-                <div className="space-y-1 pt-2">
-                  <Label className="text-xs">Additional supplements or information (optional)</Label>
-                  <Textarea
-                    placeholder="e.g. Fish oil, multivitamin, or any other supplements or relevant info to list"
-                    value={dosageNotes}
-                    onChange={(e) => setDosageNotes(e.target.value)}
-                    rows={2}
-                    className="resize-none text-sm"
-                  />
-                </div>
-              </div>
+              {/* Compounds - same component as profile */}
+              <CompoundDosageSection
+                selectedCompounds={selectedCompounds}
+                compoundDosages={compoundDosages}
+                dosageNotes={dosageNotes}
+                onAddCompound={addCompound}
+                onRemoveCompound={removeCompound}
+                onUpdateDosage={updateCompoundDosage}
+                onDosageNotesChange={setDosageNotes}
+                disabled={isSubmitting}
+                durationContext="planning"
+                showRequired={true}
+                title="Compounds"
+              />
 
               {/* Side Effects */}
               <div className="space-y-3">
@@ -633,57 +505,6 @@ export function DataInputModal({
                 />
               </div>
 
-              {/* Optional personalization (generalized educational context only) */}
-              <div className="space-y-3 rounded-lg border border-muted/50 bg-muted/20 p-3">
-                <Label className="text-sm font-medium">Optional info (for generalized educational context)</Label>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Age range</Label>
-                    <Select value={ageRange || '__none__'} onValueChange={(v) => setAgeRange(v === '__none__' ? '' : v)}>
-                      <SelectTrigger className="h-9 text-sm">
-                        <SelectValue placeholder="Prefer not to say" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {AGE_RANGES.map(({ value, label }) => (
-                          <SelectItem key={value || 'none'} value={value || '__none__'}>
-                            {label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Experience level</Label>
-                    <Select value={experienceLevel || '__none__'} onValueChange={(v) => setExperienceLevel(v === '__none__' ? '' : v)}>
-                      <SelectTrigger className="h-9 text-sm">
-                        <SelectValue placeholder="Prefer not to say" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {EXPERIENCE_LEVELS.map(({ value, label }) => (
-                          <SelectItem key={value || 'none'} value={value || '__none__'}>
-                            {label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Primary goal</Label>
-                    <Select value={primaryGoal || '__none__'} onValueChange={(v) => setPrimaryGoal(v === '__none__' ? '' : v)}>
-                      <SelectTrigger className="h-9 text-sm">
-                        <SelectValue placeholder="Prefer not to say" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PRIMARY_GOALS.map(({ value, label }) => (
-                          <SelectItem key={value || 'none'} value={value || '__none__'}>
-                            {label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
             </>
           )}
 
@@ -691,6 +512,15 @@ export function DataInputModal({
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>{saveError}</AlertDescription>
+            </Alert>
+          )}
+
+          {showSaveToProfileConfirm && (
+            <Alert className="border-cyan-200 bg-cyan-50 dark:bg-cyan-950/20 dark:border-cyan-800">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Save this strategy to your profile?</strong> Your compounds differ from what&apos;s saved. Saving will prefill future confirm dialogs.
+              </AlertDescription>
             </Alert>
           )}
 
@@ -705,7 +535,34 @@ export function DataInputModal({
         </div>
 
         <DialogFooter className="px-6 py-4 border-t shrink-0 flex-col sm:flex-row gap-2">
-          {showSkipConfirm ? (
+          {showSaveToProfileConfirm ? (
+            <>
+              <Button
+                onClick={() => handleSaveToProfileChoice(true)}
+                disabled={isSubmitting}
+                className="bg-cyan-600 hover:bg-cyan-700 text-white"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Yes, Save to Profile & Generate'
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => handleSaveToProfileChoice(false)}
+                disabled={isSubmitting}
+              >
+                No, Just Generate
+              </Button>
+              <Button variant="ghost" onClick={() => setShowSaveToProfileConfirm(false)} disabled={isSubmitting}>
+                Cancel
+              </Button>
+            </>
+          ) : showSkipConfirm ? (
             <>
               <Button
                 variant="secondary"

@@ -41,11 +41,13 @@ export function PersonalizedMonitoringPlan({
       signal: controller.signal
     })
       .then(async (res) => {
+        const err = await res.json().catch(() => ({}))
         if (!res.ok) {
-          const err = await res.json().catch(() => ({}))
-          throw new Error(err.error || `HTTP ${res.status}`)
+          const msg = err.error || `HTTP ${res.status}`
+          const flags = err.flags as string[] | undefined
+          throw new Error(flags?.length ? `${msg} Flagged: ${flags.join(', ')}` : msg)
         }
-        return res.json()
+        return err
       })
       .then((res) => setData(res.data))
       .catch((e) => setError(e.message))

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useDevMode } from '@/hooks/useDevMode'
 import { TierGate } from '@/components/TierGate'
@@ -21,7 +22,9 @@ import {
   AlertCircle,
   Calendar,
   History,
-  Trash2
+  Trash2,
+  Beaker,
+  Stethoscope
 } from 'lucide-react'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 
@@ -62,8 +65,14 @@ interface PotentialInteractions {
 interface PctProjections {
   overview?: string
   timeline?: {
+    earlyPostIntervention?: string
+    earlyRecoveryPhase?: string
+    extendedRecoveryPhase?: string
+    /** @deprecated use earlyPostIntervention */
     immediate?: string
+    /** @deprecated use earlyRecoveryPhase */
     'weeks2-4'?: string
+    /** @deprecated use extendedRecoveryPhase */
     'weeks4-12'?: string
   }
   commonConcepts?: string[]
@@ -163,7 +172,9 @@ export default function ResultsForecasterPage() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate forecast')
+        const msg = data.error || 'Failed to generate forecast'
+        const flags = data.flags as string[] | undefined
+        throw new Error(flags?.length ? `${msg} Flagged: ${flags.join(', ')}` : msg)
       }
 
       setResult(data.data)
@@ -652,13 +663,13 @@ export default function ResultsForecasterPage() {
                   </Card>
                 )}
 
-                {/* 12-Week Forecast */}
+                {/* Extended Exposure Forecast */}
                 {result.forecasts.week12 && (
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <Target className="h-5 w-5 text-purple-600" />
-                        12-Week Educational Outlook
+                        Extended Exposure
                       </CardTitle>
                       <CardDescription>{result.forecasts.week12.timeline}</CardDescription>
                     </CardHeader>
@@ -957,22 +968,22 @@ export default function ResultsForecasterPage() {
                     <div className="space-y-3">
                       <h4 className="font-semibold">Recovery Timeline (Educational)</h4>
                       <div className="grid gap-3">
-                        {result.pctProjections.timeline.immediate && (
+                        {(result.pctProjections.timeline.earlyPostIntervention ?? result.pctProjections.timeline.immediate) && (
                           <div className="rounded-lg border p-3">
-                            <span className="text-xs font-medium text-muted-foreground">Immediate</span>
-                            <p className="text-sm mt-1">{result.pctProjections.timeline.immediate}</p>
+                            <span className="text-xs font-medium text-muted-foreground">Early post-intervention</span>
+                            <p className="text-sm mt-1">{result.pctProjections.timeline.earlyPostIntervention ?? result.pctProjections.timeline.immediate}</p>
                           </div>
                         )}
-                        {result.pctProjections.timeline['weeks2-4'] && (
+                        {(result.pctProjections.timeline.earlyRecoveryPhase ?? result.pctProjections.timeline['weeks2-4']) && (
                           <div className="rounded-lg border p-3">
-                            <span className="text-xs font-medium text-muted-foreground">Weeks 2–4</span>
-                            <p className="text-sm mt-1">{result.pctProjections.timeline['weeks2-4']}</p>
+                            <span className="text-xs font-medium text-muted-foreground">Early recovery phase</span>
+                            <p className="text-sm mt-1">{result.pctProjections.timeline.earlyRecoveryPhase ?? result.pctProjections.timeline['weeks2-4']}</p>
                           </div>
                         )}
-                        {result.pctProjections.timeline['weeks4-12'] && (
+                        {(result.pctProjections.timeline.extendedRecoveryPhase ?? result.pctProjections.timeline['weeks4-12']) && (
                           <div className="rounded-lg border p-3">
-                            <span className="text-xs font-medium text-muted-foreground">Weeks 4–12</span>
-                            <p className="text-sm mt-1">{result.pctProjections.timeline['weeks4-12']}</p>
+                            <span className="text-xs font-medium text-muted-foreground">Extended recovery phase</span>
+                            <p className="text-sm mt-1">{result.pctProjections.timeline.extendedRecoveryPhase ?? result.pctProjections.timeline['weeks4-12']}</p>
                           </div>
                         )}
                       </div>
@@ -1093,6 +1104,22 @@ export default function ResultsForecasterPage() {
             <div className="flex justify-center">
               <Button onClick={resetForecast} variant="outline">
                 Generate New Forecast
+              </Button>
+            </div>
+
+            {/* CTA: Order Blood Test / Explore Telehealth */}
+            <div className="flex flex-col sm:flex-row gap-3 justify-center pt-6 border-t">
+              <Button asChild variant="default" className="bg-cyan-600 hover:bg-cyan-700">
+                <Link href="/blood-panel-order" className="inline-flex items-center gap-2">
+                  <Beaker className="h-4 w-4" />
+                  Order Blood Test
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/telehealth-referral" className="inline-flex items-center gap-2">
+                  <Stethoscope className="h-4 w-4" />
+                  Explore Telehealth Options
+                </Link>
               </Button>
             </div>
 

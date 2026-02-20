@@ -53,11 +53,12 @@ export function PersonalizedSuppStack({ className, analysisType, supports: props
       setError(null)
 
       const response = await fetch('/api/supplement-analyzer')
-      if (!response.ok) {
-        throw new Error('Failed to generate supplement recommendations')
-      }
-
       const data = await response.json()
+      if (!response.ok) {
+        const msg = data.error || 'Failed to generate supplement recommendations'
+        const flags = data.flags as string[] | undefined
+        throw new Error(flags?.length ? `${msg} Flagged: ${flags.join(', ')}` : msg)
+      }
       setApiData(data)
     } catch (err: any) {
       setError(err.message || 'Failed to load recommendations')

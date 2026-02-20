@@ -27,11 +27,12 @@ export function HealthRiskScoreBadge({ className }: HealthRiskScoreBadgeProps) {
       setError(null)
 
       const response = await fetch('/api/health-risk-score')
-      if (!response.ok) {
-        throw new Error('Failed to fetch risk score')
-      }
-
       const data = await response.json()
+      if (!response.ok) {
+        const msg = data.error || 'Failed to fetch risk score'
+        const flags = data.flags as string[] | undefined
+        throw new Error(flags?.length ? `${msg} Flagged: ${flags.join(', ')}` : msg)
+      }
       setRiskData(data)
     } catch (err: any) {
       setError(err.message || 'Failed to load risk score')

@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
 
     if (!grokResult.success) {
       const status = grokResult._complianceBlocked ? 422 : 500
-      return NextResponse.json({ error: grokResult.error || 'Failed to calculate risk score' }, { status })
+      return NextResponse.json({ error: grokResult.error || 'Failed to calculate risk score', flags: grokResult._complianceFlags }, { status })
     }
 
     return NextResponse.json(grokResult.data)

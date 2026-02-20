@@ -26,6 +26,8 @@ import {
   ArrowRight
 } from 'lucide-react'
 import { useSubscriptionTier } from '@/hooks/useSubscriptionTier'
+import { CompoundDosageSection, DEFAULT_DOSAGE } from '@/components/CompoundDosageSection'
+import type { CurrentCompoundsData } from '@/lib/profile-compounds'
 
 const GOALS_OPTIONS = [
   'Contest Prep', 'Lean Bulk', 'Dirty Bulk', 'Cut', 'TRT Optimization',
@@ -51,6 +53,9 @@ export default function ProfilePage() {
     experience_level: null,
     risk_tolerance: null
   })
+  const [currentCompounds, setCurrentCompounds] = useState<string[]>([])
+  const [compoundDosages, setCompoundDosages] = useState<Record<string, { amount: string; unit: string; frequency: string; route: string; durationValue: string; durationUnit: string }>>({})
+  const [dosageNotes, setDosageNotes] = useState('')
   const [consentGiven, setConsentGiven] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -76,6 +81,16 @@ export default function ProfilePage() {
           experience_level: data.experience_level ?? null,
           risk_tolerance: data.risk_tolerance ?? null
         })
+        const cc = data.current_compounds_json as CurrentCompoundsData | null
+        if (cc?.compounds?.length) {
+          setCurrentCompounds(cc.compounds)
+          setCompoundDosages(cc.compoundDosages ?? {})
+          setDosageNotes(cc.dosageNotes ?? '')
+        } else {
+          setCurrentCompounds([])
+          setCompoundDosages({})
+          setDosageNotes('')
+        }
       }
     } catch (err: any) {
       setError('Failed to load profile')
@@ -100,12 +115,40 @@ export default function ProfilePage() {
     setProfile(prev => ({ ...prev, [field]: value }))
   }
 
+  const addCompound = (name: string) => {
+    if (name && !currentCompounds.includes(name)) {
+      setCurrentCompounds([...currentCompounds, name])
+      setCompoundDosages((prev) => ({ ...prev, [name]: { ...DEFAULT_DOSAGE } }))
+    }
+  }
+
+  const removeCompound = (name: string) => {
+    setCurrentCompounds(currentCompounds.filter((n) => n !== name))
+    setCompoundDosages((prev) => {
+      const next = { ...prev }
+      delete next[name]
+      return next
+    })
+  }
+
+  const updateCompoundDosage = (name: string, field: 'amount' | 'unit' | 'frequency' | 'route' | 'durationValue' | 'durationUnit', value: string) => {
+    setCompoundDosages((prev) => ({
+      ...prev,
+      [name]: { ...(prev[name] ?? DEFAULT_DOSAGE), [field]: value },
+    }))
+  }
+
   const handleSaveProfile = async () => {
     setSaving(true)
     setError(null)
     setSuccess(null)
 
       try {
+        const currentCompoundsPayload: CurrentCompoundsData | null =
+          currentCompounds.length > 0
+            ? { compounds: currentCompounds, compoundDosages, dosageNotes: dosageNotes.trim() || undefined }
+            : null
+
         const response = await fetch('/api/profile', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -115,7 +158,8 @@ export default function ProfilePage() {
             weight_lbs: profile.weight_lbs,
             goals: profile.goals,
             experience_level: profile.experience_level,
-            risk_tolerance: profile.risk_tolerance
+            risk_tolerance: profile.risk_tolerance,
+            current_compounds_json: currentCompoundsPayload
           })
         })
 
@@ -128,6 +172,7 @@ export default function ProfilePage() {
       setError(err.message)
     } finally {
       setSaving(false)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
   }
 
@@ -346,6 +391,24 @@ export default function ProfilePage() {
                     className="mt-2"
                   />
                 )}
+              </div>
+
+              {/* Current Compounds - same UI as confirm protocol dialog */}
+              <div className="pt-4 border-t">
+                <CompoundDosageSection
+                  selectedCompounds={currentCompounds}
+                  compoundDosages={compoundDosages}
+                  dosageNotes={dosageNotes}
+                  onAddCompound={addCompound}
+                  onRemoveCompound={removeCompound}
+                  onUpdateDosage={updateCompoundDosage}
+                  onDosageNotesChange={setDosageNotes}
+                  disabled={saving}
+                  durationContext="planning"
+                  showRequired={true}
+                  title="Current Compounds"
+                  helperText="Compounds you're currently taking. This prefills the confirm dialog when using Results Forecaster, Recovery Timeline, and similar features."
+                />
               </div>
 
               <Button onClick={handleSaveProfile} disabled={saving} className="w-full">

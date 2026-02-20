@@ -171,7 +171,7 @@ Format this into a professional telehealth referral package. Return valid JSON w
     if (!grokResult.success) {
       const status = grokResult._complianceBlocked ? 422 : 500
       return NextResponse.json(
-        { error: grokResult.error || 'Failed to generate referral package' },
+        { error: grokResult.error || 'Failed to generate referral package', flags: grokResult._complianceFlags },
         { status }
       )
     }
