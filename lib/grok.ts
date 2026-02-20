@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { createSupabaseServerClient } from './supabase-server'
+import { monitorOutput } from './compliance-monitor'
 import fs from 'fs'
 import path from 'path'
 
@@ -23,6 +24,12 @@ export interface CallGrokOptions {
   responseFormat?: 'json' | 'text'
   /** Max tokens for response (default from API); use 4096+ for long structured output */
   maxTokens?: number
+  /** Route/path for compliance monitoring (defaults to feature) */
+  route?: string
+  /** User query/input for compliance context (truncated) */
+  query?: string
+  /** Override temperature (default 0.3); higher = more creative */
+  temperature?: number
 }
 
 /**
@@ -54,6 +61,7 @@ export interface CallGrokResult {
   data?: any
   error?: string
   tokensUsed?: number
+  _complianceBlocked?: boolean
 }
 
 export async function callGrok({
@@ -64,7 +72,10 @@ export async function callGrok({
   imageUrls = [],
   variables = {},
   responseFormat = 'json',
-  maxTokens
+  maxTokens,
+  route,
+  query,
+  temperature,
 }: CallGrokOptions): Promise<CallGrokResult> {
   const apiKey = process.env.GROK_API_KEY
 
@@ -114,7 +125,7 @@ export async function callGrok({
     const requestBody: Record<string, unknown> = {
       messages: [{ role: 'user', content: messageContent }],
       model: 'grok-4-1-fast-reasoning',
-      temperature: 0.3,
+      temperature: temperature ?? 0.3,
       ...(maxTokens != null && { max_tokens: maxTokens }),
     }
     if (responseFormat === 'json') {
@@ -149,12 +160,24 @@ export async function callGrok({
     if (responseFormat === 'text') {
       parsedData = content
     } else {
+      let jsonStr = content.trim()
+      // Strip markdown code blocks (```json ... ``` or ``` ... ```)
+      const codeBlockMatch = jsonStr.match(/^```(?:json)?\s*([\s\S]*?)```\s*$/m)
+      if (codeBlockMatch) {
+        jsonStr = codeBlockMatch[1].trim()
+      }
+      // Try to extract JSON object if wrapped in extra text
+      const objectMatch = jsonStr.match(/\{[\s\S]*\}/)
+      if (objectMatch && objectMatch[0] !== jsonStr) {
+        jsonStr = objectMatch[0]
+      }
       try {
-        parsedData = JSON.parse(content)
+        parsedData = JSON.parse(jsonStr)
       } catch (parseError) {
+        console.error('[Grok] JSON parse failed:', { feature, contentPreview: content.slice(0, 200) })
         return {
           success: false,
-          error: `Failed to parse JSON response: ${parseError}`,
+          error: `Failed to parse JSON response. Please try again.`,
           tokensUsed
         }
       }
@@ -171,6 +194,34 @@ export async function callGrok({
     } catch (dbError) {
       console.error('Failed to log token usage:', dbError)
       // Don't fail the entire operation if logging fails
+    }
+
+    // Compliance monitoring (internal, non-blocking)
+    try {
+      const routePath = route ?? feature
+      const queryStr = query ?? (typeof finalPrompt === 'string' ? finalPrompt.slice(0, 500) : 'n/a')
+      const monitorResult = await monitorOutput(queryStr, parsedData, routePath, userId)
+
+      // Educational routes with curated prompts: log flags but do not block
+      const educationalNoBlockRoutes = ['compound-breakdown', 'stack-education']
+      const shouldBlock = monitorResult.status === 'HIGH_RISK' && !educationalNoBlockRoutes.includes(routePath)
+
+      if (shouldBlock) {
+        console.warn('[Compliance] HIGH_RISK detected:', { feature, route: routePath, flags: monitorResult.flags })
+        return {
+          success: false,
+          error: 'Response under compliance review — content is educational only. Please try again.',
+          tokensUsed,
+          data: undefined,
+          _complianceBlocked: true,
+        }
+      }
+      if (monitorResult.status === 'HIGH_RISK' && educationalNoBlockRoutes.includes(routePath)) {
+        console.warn('[Compliance] HIGH_RISK logged (no block):', { route: routePath, flags: monitorResult.flags })
+      }
+    } catch (monitorErr) {
+      console.error('[Compliance] Monitor error:', monitorErr)
+      // Don't fail the request if monitoring fails
     }
 
     console.log('[Grok] Success:', { feature, userId, tokensUsed })

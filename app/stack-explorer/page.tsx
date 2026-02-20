@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createSupabaseBrowserClient } from '@/lib/supabase-client'
 import { useSubscriptionTier } from '@/hooks/useSubscriptionTier'
+import { TierGate } from '@/components/TierGate'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -126,6 +127,7 @@ interface StackAnalysisResult {
 const GOALS_OPTIONS = [
   'Contest Prep',
   'Lean Bulk',
+  'Dirty Bulk',
   'Cut',
   'TRT Optimization',
   'Strength Gains',
@@ -195,6 +197,32 @@ export default function StackExplorerPage() {
     }
     fetchSavedReports()
   }, [result]) // Refetch when result changes (new report saved)
+
+  // Pre-populate from user_onboarding_profiles or profiles when form is empty
+  useEffect(() => {
+    if (goals || experience || riskTolerance) return // Already has data
+    const fetchProfile = async () => {
+      try {
+        const [onboardingRes, profileRes] = await Promise.all([
+          fetch('/api/onboarding'),
+          fetch('/api/profile')
+        ])
+        const onboarding = onboardingRes.ok ? await onboardingRes.json() : null
+        const profile = profileRes.ok ? await profileRes.json() : null
+        if (onboarding?.primary_goal) setGoals(onboarding.primary_goal)
+        else if (profile?.goals) setGoals(profile.goals)
+        if (onboarding?.ped_experience_level) {
+          const exp = onboarding.ped_experience_level
+          setExperience(exp === 'none' ? 'beginner' : exp)
+        } else if (profile?.experience_level) setExperience(profile.experience_level)
+        if (onboarding?.risk_tolerance) setRiskTolerance(onboarding.risk_tolerance)
+        else if (profile?.risk_tolerance) setRiskTolerance(profile.risk_tolerance)
+      } catch {
+        // Ignore
+      }
+    }
+    fetchProfile()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps -- only on mount, skip when form has data
 
   const parseCompoundNames = (additions: string[] | undefined): string[] => {
     if (!additions?.length) return []
@@ -641,8 +669,11 @@ export default function StackExplorerPage() {
                       <p className="text-sm text-muted-foreground">{approach.benefits}</p>
                     </div>
 
-                    <div>
-                      <h4 className="font-semibold text-sm mb-2 text-destructive">Risks & Monitoring Focus:</h4>
+                    <div className="rounded-lg border-2 border-destructive/30 bg-destructive/5 dark:bg-destructive/10 p-4">
+                      <h4 className="font-bold text-base mb-2 text-destructive flex items-center gap-2">
+                        <AlertTriangle className="h-5 w-5 shrink-0" />
+                        Risks & Monitoring Focus
+                      </h4>
                       <p className="text-sm text-muted-foreground">{approach.risks}</p>
                     </div>
 
@@ -733,10 +764,10 @@ export default function StackExplorerPage() {
 
         {/* Combination Risks */}
         {comboRisks.length > 0 && (
-          <Card className="border-amber-200 dark:border-amber-800">
+          <Card className="border-2 border-destructive/40 bg-destructive/5 dark:bg-destructive/10">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
-                <AlertTriangle className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-2 font-bold text-destructive">
+                <AlertTriangle className="h-5 w-5 shrink-0" />
                 Combination Risks
               </CardTitle>
               <CardDescription>
@@ -970,6 +1001,7 @@ export default function StackExplorerPage() {
   }
 
   return (
+    <TierGate>
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         {/* Header */}
@@ -987,59 +1019,6 @@ export default function StackExplorerPage() {
             <strong>Educational tool only. Not medical advice. Consult your physician.</strong> All analysis provided is for educational purposes only and should not be used as a substitute for professional medical advice, diagnosis, or treatment.
           </AlertDescription>
         </Alert>
-
-        {/* Saved Reports */}
-        {!savedReportsLoading && savedReports.length > 0 && (
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <History className="h-5 w-5" />
-                Saved Reports
-              </CardTitle>
-              <CardDescription>
-                Your previous stack analyses are saved automatically. Click to view.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {savedReports.map((report) => (
-                  <div
-                    key={report.id}
-                    className="flex items-center gap-2 p-3 rounded-lg border bg-muted/50 hover:bg-muted transition-colors group"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => loadSavedReport(report)}
-                      className="flex-1 flex items-center gap-3 min-w-0 text-left"
-                    >
-                      <FolderOpen className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-sm truncate">
-                          {getReportTitle(report.stack_json)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatReportDate(report.created_at)}
-                        </p>
-                      </div>
-                    </button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 shrink-0 opacity-60 hover:opacity-100 hover:text-destructive"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        openDeleteConfirm(report.id)
-                      }}
-                      aria-label="Delete report"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Progress Indicator */}
         {currentStep <= totalSteps && (
@@ -1107,6 +1086,59 @@ export default function StackExplorerPage() {
           </div>
         )}
 
+        {/* Saved Reports - under Next button for user continuity */}
+        {currentStep <= totalSteps && !savedReportsLoading && savedReports.length > 0 && (
+          <Card className="mt-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <History className="h-5 w-5" />
+                Saved Reports
+              </CardTitle>
+              <CardDescription>
+                Your previous stack analyses are saved automatically. Click to view.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {savedReports.map((report) => (
+                  <div
+                    key={report.id}
+                    className="flex items-center gap-2 p-3 rounded-lg border bg-muted/50 hover:bg-muted transition-colors group"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => loadSavedReport(report)}
+                      className="flex-1 flex items-center gap-3 min-w-0 text-left"
+                    >
+                      <FolderOpen className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm truncate">
+                          {getReportTitle(report.stack_json)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatReportDate(report.created_at)}
+                        </p>
+                      </div>
+                    </button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 shrink-0 opacity-60 hover:opacity-100 hover:text-destructive"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openDeleteConfirm(report.id)
+                      }}
+                      aria-label="Delete report"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Delete Report Confirmation */}
         <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
           <DialogContent>
@@ -1128,5 +1160,6 @@ export default function StackExplorerPage() {
         </Dialog>
       </div>
     </div>
+    </TierGate>
   )
 }

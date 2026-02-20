@@ -39,12 +39,19 @@ const DOSAGE_ROUTES = [
   { value: 'other', label: 'Other' },
 ] as const
 
+const DURATION_UNITS = [
+  { value: 'days', label: 'Days' },
+  { value: 'weeks', label: 'Weeks' },
+  { value: 'months', label: 'Months' },
+  { value: 'years', label: 'Years' },
+] as const
+
 /** Parse saved dosages string back into compoundDosages + optional additional notes */
 function parseDosagesString(
   dosagesStr: string | null,
   compoundNames: string[]
-): { compoundDosages: Record<string, { amount: string; unit: string; frequency: string; route: string }>; additionalNotes: string } {
-  const result: Record<string, { amount: string; unit: string; frequency: string; route: string }> = {}
+): { compoundDosages: Record<string, { amount: string; unit: string; frequency: string; route: string; durationValue: string; durationUnit: string }>; additionalNotes: string } {
+  const result: Record<string, { amount: string; unit: string; frequency: string; route: string; durationValue: string; durationUnit: string }> = {}
   const freqByLabel = Object.fromEntries(DOSAGE_FREQUENCIES.map((f) => [f.label.toLowerCase(), f.value]))
   const routeByLabel = Object.fromEntries(
     DOSAGE_ROUTES.map((r) => [r.label.toLowerCase().replace(/\s*\([^)]*\)\s*/g, '').trim(), r.value])
@@ -100,7 +107,11 @@ function parseDosagesString(
     const routeLabel = routeMatch ? routeMatch[1].toLowerCase() : ''
     const routeValue =
       Object.entries(routeByLabel).find(([k]) => routeLabel.includes(k) || k.includes(routeLabel))?.[1] ?? 'im'
-    result[name] = { amount, unit, frequency, route: routeValue }
+    const durationMatch = part.match(/(\d+)\s*(day|week|month|year)s?\s*(?:used|without break)?/i)
+    const durationValue = durationMatch ? durationMatch[1] : ''
+    const rawUnit = durationMatch?.[2].toLowerCase().replace(/s$/, '')
+    const durationUnit = durationMatch ? (unitMap[rawUnit ?? ''] ?? 'weeks') : 'weeks'
+    result[name] = { amount, unit, frequency, route: routeValue, durationValue, durationUnit }
   }
   return { compoundDosages: result, additionalNotes }
 }
@@ -139,13 +150,14 @@ interface SideEffectLog {
   compounds: string[]
   dosages: string | null
   side_effects: string[]
+  additional_supplements?: string | null
   created_at: string
 }
 
 interface UpdateInfoModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSaveAndGenerate: (compounds: string[], dosages: string, sideEffects: string[]) => Promise<void>
+  onSaveAndGenerate: (compounds: string[], dosages: string, sideEffects: string[], additionalSupplements?: string) => Promise<void>
   onGenerateWithLastKnown: () => Promise<void>
   isGenerating?: boolean
 }
@@ -160,7 +172,7 @@ export function UpdateInfoModal({
   const [selectedCompounds, setSelectedCompounds] = useState<string[]>([])
   const [selectedSideEffects, setSelectedSideEffects] = useState<string[]>([])
   const [customSideEffect, setCustomSideEffect] = useState('')
-  const [compoundDosages, setCompoundDosages] = useState<Record<string, { amount: string; unit: string; frequency: string; route: string }>>({})
+  const [compoundDosages, setCompoundDosages] = useState<Record<string, { amount: string; unit: string; frequency: string; route: string; durationValue: string; durationUnit: string }>>({})
   const [dosageNotes, setDosageNotes] = useState('')
   const [isLoadingPrefill, setIsLoadingPrefill] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -175,9 +187,12 @@ export function UpdateInfoModal({
       const unit = d.unit && d.unit !== 'other' ? d.unit : ''
       const freqLabel = DOSAGE_FREQUENCIES.find((f) => f.value === d.frequency)?.label ?? d.frequency
       const routeLabel = DOSAGE_ROUTES.find((r) => r.value === d.route)?.label ?? d.route
+      const durVal = (d.durationValue ?? '').trim()
+      const durUnit = d.durationUnit || 'weeks'
+      const durationStr = durVal && /^\d+$/.test(durVal) ? `, ${durVal} ${DURATION_UNITS.find((u) => u.value === durUnit)?.label ?? durUnit} used (no break)` : ''
       if (amount) {
         const unitStr = unit ? ` ${unit}` : ''
-        parts.push(`${name}: ${amount}${unitStr} ${freqLabel} (${routeLabel})`.replace(/\s+/g, ' ').trim())
+        parts.push(`${name}: ${amount}${unitStr} ${freqLabel} (${routeLabel})${durationStr}`.replace(/\s+/g, ' ').trim())
       } else {
         parts.push(`${name}: (not specified)${routeLabel ? ` — ${routeLabel}` : ''}`)
       }
@@ -201,7 +216,8 @@ export function UpdateInfoModal({
           setSelectedCompounds(compounds)
           setSelectedSideEffects(latest.side_effects ?? [])
           const { compoundDosages: parsed, additionalNotes } = parseDosagesString(latest.dosages, compounds)
-          setDosageNotes(additionalNotes)
+          // Prefer explicit additional_supplements column over parsed from dosages
+          setDosageNotes((latest.additional_supplements ?? additionalNotes) || '')
           setCompoundDosages(parsed)
         }
       }
@@ -223,7 +239,7 @@ export function UpdateInfoModal({
   const addCompound = (name: string) => {
     if (name && !selectedCompounds.includes(name)) {
       setSelectedCompounds([...selectedCompounds, name])
-      setCompoundDosages((prev) => ({ ...prev, [name]: { amount: '', unit: 'mg', frequency: 'weekly', route: 'im' } }))
+      setCompoundDosages((prev) => ({ ...prev, [name]: { amount: '', unit: 'mg', frequency: 'weekly', route: 'im', durationValue: '', durationUnit: 'weeks' } }))
     }
   }
 
@@ -236,7 +252,7 @@ export function UpdateInfoModal({
     })
   }
 
-  const updateCompoundDosage = (name: string, field: 'amount' | 'unit' | 'frequency' | 'route', value: string) => {
+  const updateCompoundDosage = (name: string, field: 'amount' | 'unit' | 'frequency' | 'route' | 'durationValue' | 'durationUnit', value: string) => {
     setCompoundDosages((prev) => ({
       ...prev,
       [name]: { ...prev[name], [field]: value },
@@ -271,7 +287,7 @@ export function UpdateInfoModal({
       return
     }
     if (selectedCompounds.length > 0 && !allCompoundsHaveDosage) {
-      setSaveError('Please enter amount, unit, frequency, and route for each compound listed.')
+      setSaveError('Please enter amount, unit, frequency, route, and length of time used for each compound listed.')
       return
     }
     setSaveError(null)
@@ -346,79 +362,111 @@ export function UpdateInfoModal({
                 {selectedCompounds.length > 0 && (
                   <>
                     <p className="text-xs text-muted-foreground pt-2">
-                      Amount, unit, frequency, and route are required for each compound.
+                      Amount, unit, frequency, route, and length of time used are required for each compound.
                     </p>
-                    <div className="space-y-3 pt-2 border-t">
-                    {selectedCompounds.map((name) => {
-                      const d = compoundDosages[name] ?? { amount: '', unit: 'mg', frequency: 'weekly', route: 'im' }
-                      return (
-                        <div key={name} className="rounded-lg border bg-muted/30 p-3 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium text-sm">{name}</span>
-                            <button
-                              type="button"
-                              onClick={() => removeCompound(name)}
-                              className="text-muted-foreground hover:text-destructive p-1"
-                              aria-label={`Remove ${name}`}
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </div>
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                            <div className="space-y-1">
-                              <Label className="text-xs">Amount <span className="text-destructive">*</span></Label>
-                              <Input
-                                type="text"
-                                inputMode="decimal"
-                                placeholder="e.g. 250"
-                                value={d.amount}
-                                onChange={(e) => updateCompoundDosage(name, 'amount', e.target.value)}
-                                className="h-8"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Unit <span className="text-destructive">*</span></Label>
-                              <Select value={d.unit} onValueChange={(v) => updateCompoundDosage(name, 'unit', v)}>
-                                <SelectTrigger className="h-8">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {DOSAGE_UNITS.map((u) => (
-                                    <SelectItem key={u} value={u}>{u}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Frequency <span className="text-destructive">*</span></Label>
-                              <Select value={d.frequency} onValueChange={(v) => updateCompoundDosage(name, 'frequency', v)}>
-                                <SelectTrigger className="h-8">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {DOSAGE_FREQUENCIES.map((f) => (
-                                    <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Route</Label>
-                              <Select value={d.route} onValueChange={(v) => updateCompoundDosage(name, 'route', v)}>
-                                <SelectTrigger className="h-8">
-                                  <SelectValue placeholder="Route" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {DOSAGE_ROUTES.map((r) => (
-                                    <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
+                    <div className="pt-2 border-t overflow-x-auto">
+                      <table className="w-full min-w-[640px] text-sm">
+                        <thead>
+                          <tr className="border-b text-left text-muted-foreground">
+                            <th className="py-2 pr-2 font-medium">Compound</th>
+                            <th className="py-2 pr-2 font-medium">Amount <span className="text-destructive">*</span></th>
+                            <th className="py-2 pr-2 font-medium">Unit <span className="text-destructive">*</span></th>
+                            <th className="py-2 pr-2 font-medium">Frequency <span className="text-destructive">*</span></th>
+                            <th className="py-2 pr-2 font-medium">Route</th>
+                            <th className="py-2 pr-2 font-medium">Length of time <span className="text-destructive">*</span></th>
+                            <th className="py-2 w-8"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                        {selectedCompounds.map((name) => {
+                          const d = compoundDosages[name] ?? { amount: '', unit: 'mg', frequency: 'weekly', route: 'im', durationValue: '', durationUnit: 'weeks' }
+                          return (
+                            <tr key={name} className="border-b last:border-0">
+                              <td className="py-2 pr-2 font-medium align-top">{name}</td>
+                              <td className="py-2 pr-2 align-top">
+                                <Input
+                                  type="text"
+                                  inputMode="decimal"
+                                  placeholder="e.g. 250"
+                                  value={d.amount}
+                                  onChange={(e) => updateCompoundDosage(name, 'amount', e.target.value)}
+                                  className="h-8 w-20"
+                                />
+                              </td>
+                              <td className="py-2 pr-2 align-top">
+                                <Select value={d.unit} onValueChange={(v) => updateCompoundDosage(name, 'unit', v)}>
+                                  <SelectTrigger className="h-8 w-16">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {DOSAGE_UNITS.map((u) => (
+                                      <SelectItem key={u} value={u}>{u}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </td>
+                              <td className="py-2 pr-2 align-top">
+                                <Select value={d.frequency} onValueChange={(v) => updateCompoundDosage(name, 'frequency', v)}>
+                                  <SelectTrigger className="h-8 w-28">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {DOSAGE_FREQUENCIES.map((f) => (
+                                      <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </td>
+                              <td className="py-2 pr-2 align-top">
+                                <Select value={d.route} onValueChange={(v) => updateCompoundDosage(name, 'route', v)}>
+                                  <SelectTrigger className="h-8 w-20">
+                                    <SelectValue placeholder="Route" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {DOSAGE_ROUTES.map((r) => (
+                                      <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </td>
+                              <td className="py-2 pr-2 align-top">
+                                <div className="flex gap-1 items-center">
+                                  <Input
+                                    type="text"
+                                    inputMode="numeric"
+                                    placeholder="e.g. 12"
+                                    value={d.durationValue ?? ''}
+                                    onChange={(e) => updateCompoundDosage(name, 'durationValue', e.target.value)}
+                                    className="h-8 w-14"
+                                  />
+                                  <Select value={d.durationUnit ?? 'weeks'} onValueChange={(v) => updateCompoundDosage(name, 'durationUnit', v)}>
+                                    <SelectTrigger className="h-8 w-20">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {DURATION_UNITS.map((u) => (
+                                        <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-0.5">Time used without break</p>
+                              </td>
+                              <td className="py-2 align-top">
+                                <button
+                                  type="button"
+                                  onClick={() => removeCompound(name)}
+                                  className="text-muted-foreground hover:text-destructive p-1"
+                                  aria-label={`Remove ${name}`}
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                        </tbody>
+                      </table>
                     </div>
                   </>
                 )}

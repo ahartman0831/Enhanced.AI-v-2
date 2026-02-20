@@ -69,21 +69,21 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const { age, sex, weight_lbs, goals, experience_level, risk_tolerance } = body
 
-    // Upsert profile
+    // Only update user-editable columns (never overwrite subscription_tier, stripe_*, etc.)
+    const payload: Record<string, unknown> = {
+      id: user.id,
+      updated_at: new Date().toISOString()
+    }
+    if (age !== undefined) payload.age = age === '' || age === null ? null : Number(age)
+    if (sex !== undefined) payload.sex = sex === '' || sex === null ? null : String(sex)
+    if (weight_lbs !== undefined) payload.weight_lbs = weight_lbs === '' || weight_lbs === null ? null : Number(weight_lbs)
+    if (goals !== undefined) payload.goals = goals === '' || goals === null ? null : String(goals)
+    if (experience_level !== undefined) payload.experience_level = experience_level === '' || experience_level === null ? null : String(experience_level)
+    if (risk_tolerance !== undefined) payload.risk_tolerance = risk_tolerance === '' || risk_tolerance === null ? null : String(risk_tolerance)
+
     const { data, error } = await supabase
       .from('profiles')
-      .upsert({
-        id: user.id,
-        age,
-        sex,
-        weight_lbs,
-        goals,
-        experience_level,
-        risk_tolerance,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'id'
-      })
+      .upsert(payload as never, { onConflict: 'id' })
       .select()
       .single()
 

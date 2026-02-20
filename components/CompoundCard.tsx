@@ -13,7 +13,35 @@ import {
 } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { cn } from '@/lib/utils'
-import { Beaker, Loader2, AlertTriangle, ExternalLink } from 'lucide-react'
+import { Beaker, Loader2, AlertTriangle, ExternalLink, Info } from 'lucide-react'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion'
+
+interface AaRatioData {
+  anabolic?: number | null
+  androgenic?: number | null
+  ratio?: string | null
+  assay?: string | null
+  sources?: string[]
+  disclaimer?: string
+}
+
+interface AromatizationData {
+  score?: number | null
+  notes?: string | null
+  disclaimer?: string
+}
+
+interface ScientificMetrics {
+  aa_ratio?: AaRatioData | null
+  aromatization?: AromatizationData | null
+  display_text?: string
+  disclaimer?: string
+}
 
 interface CompoundBreakdown {
   disclaimer?: string
@@ -26,18 +54,51 @@ interface CompoundBreakdown {
   monitoring_markers?: (string | { marker?: string; why?: string })[]
   nutrition_impact?: string
   common_interactions?: string
+  scientific_metrics?: ScientificMetrics
   sources?: string[]
 }
 
-function renderBreakdownValue(value: string | Record<string, unknown> | undefined): ReactNode {
+const SIDE_EFFECT_LABELS: Record<string, string> = {
+  common_frequent: 'Common & Frequent',
+  occasional: 'Occasional',
+  rare: 'Rare',
+  severe: 'Severe',
+  less_common_moderate: 'Less Common / Moderate',
+  serious_rare_severe: 'Serious / Rare / Severe',
+}
+
+const RISK_CATEGORY_STYLES: Record<string, string> = {
+  common_frequent: 'font-bold text-sm uppercase tracking-wide text-amber-700 dark:text-amber-400',
+  occasional: 'font-bold text-sm uppercase tracking-wide text-orange-600 dark:text-orange-400',
+  rare: 'font-bold text-sm uppercase tracking-wide text-amber-800 dark:text-amber-300',
+  severe: 'font-bold text-sm uppercase tracking-wide text-destructive',
+  less_common_moderate: 'font-bold text-sm uppercase tracking-wide text-orange-600 dark:text-orange-400',
+  serious_rare_severe: 'font-bold text-sm uppercase tracking-wide text-destructive',
+}
+
+function formatRiskLabel(key: string): string {
+  const label = SIDE_EFFECT_LABELS[key] ?? key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+  return label
+}
+
+function renderBreakdownValue(value: string | Record<string, unknown> | undefined, isSideEffects = false): ReactNode {
   if (value == null) return null
   if (typeof value === 'string') return value
   if (typeof value === 'object' && !Array.isArray(value)) {
     return (
       <div className="space-y-3">
-        {Object.entries(value).map(([key, val]) => (
+        {Object.entries(value).map(([key, val]) => {
+          const label = formatRiskLabel(key)
+          const headerClass = isSideEffects && RISK_CATEGORY_STYLES[key]
+            ? RISK_CATEGORY_STYLES[key]
+            : isSideEffects
+              ? 'font-bold text-sm uppercase tracking-wide text-muted-foreground'
+              : 'font-medium text-foreground'
+          return (
           <div key={key} className="space-y-1">
-            <span className="font-medium text-foreground">{key}</span>
+            <span className={headerClass}>
+              {label}
+            </span>
             <div className="text-muted-foreground text-sm">
               {typeof val === 'string' ? (
                 val
@@ -48,13 +109,14 @@ function renderBreakdownValue(value: string | Record<string, unknown> | undefine
                   ))}
                 </ul>
               ) : typeof val === 'object' && val !== null ? (
-                renderBreakdownValue(val as Record<string, unknown>)
+                renderBreakdownValue(val as Record<string, unknown>, false)
               ) : (
                 String(val)
               )}
             </div>
           </div>
-        ))}
+          )
+        })}
       </div>
     )
   }
@@ -71,6 +133,15 @@ interface CompoundCardProps {
     affected_systems: string[] | null
     key_monitoring_markers: string[] | null
     nutrition_impact_summary: string | null
+    what_it_is?: string | null
+    side_effects?: string | null
+    sources?: string[] | null
+    aromatization_score?: number | null
+    aromatization_notes?: string | null
+    aa_ratio?: Record<string, unknown> | null
+    created_at?: string | null
+    updated_at?: string | null
+    breakdown_updated_at?: string | null
   }
 }
 
@@ -190,6 +261,48 @@ export function CompoundCard({ compound }: CompoundCardProps) {
           </div>
         )}
 
+        {compound.what_it_is && (
+          <div>
+            <h4 className="font-semibold text-sm mb-2">What It Is</h4>
+            <p className="text-sm text-muted-foreground">{compound.what_it_is}</p>
+          </div>
+        )}
+
+        {compound.side_effects && (
+          <div className="rounded-md border-2 border-amber-300/60 dark:border-amber-700/60 bg-amber-50/40 dark:bg-amber-950/20 p-3">
+            <h4 className="font-bold text-sm mb-1.5 text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              Side Effects
+            </h4>
+            <p className="text-sm text-muted-foreground">{compound.side_effects}</p>
+          </div>
+        )}
+
+        {(compound.aromatization_score != null || compound.aromatization_notes) && (
+          <div>
+            <h4 className="font-semibold text-sm mb-2">Aromatization</h4>
+            <div className="text-sm text-muted-foreground space-y-1">
+              {compound.aromatization_score != null && (
+                <p>Observational score (0–10): {compound.aromatization_score}</p>
+              )}
+              {compound.aromatization_notes && (
+                <p className="text-xs italic">{compound.aromatization_notes}</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {compound.sources && compound.sources.length > 0 && (
+          <div>
+            <h4 className="font-semibold text-sm mb-2">Sources</h4>
+            <ul className="text-sm text-muted-foreground space-y-0.5">
+              {compound.sources.map((src, idx) => (
+                <li key={idx}>{src}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <Button
           variant="outline"
           size="sm"
@@ -267,9 +380,12 @@ export function CompoundCard({ compound }: CompoundCardProps) {
               )}
 
               {breakdown.risks_and_side_effects && (
-                <div>
-                  <h4 className="font-semibold mb-2 text-destructive">Risks & Side Effects</h4>
-                  <div className="text-sm text-muted-foreground">{renderBreakdownValue(breakdown.risks_and_side_effects)}</div>
+                <div className="rounded-lg border-2 border-destructive/30 bg-destructive/5 dark:bg-destructive/10 p-4">
+                  <h4 className="font-bold text-base mb-3 text-destructive flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 shrink-0" />
+                    Risks & Side Effects
+                  </h4>
+                  <div className="text-sm text-muted-foreground space-y-4">{renderBreakdownValue(breakdown.risks_and_side_effects, true)}</div>
                 </div>
               )}
 
@@ -311,6 +427,75 @@ export function CompoundCard({ compound }: CompoundCardProps) {
                   <h4 className="font-semibold mb-2">Common Interactions</h4>
                   <div className="text-sm text-muted-foreground">{renderBreakdownValue(breakdown.common_interactions)}</div>
                 </div>
+              )}
+
+              {breakdown.scientific_metrics && (
+                <Accordion type="single" collapsible className="w-full">
+                  {breakdown.scientific_metrics.aromatization && breakdown.scientific_metrics.aromatization.score != null && (
+                    <AccordionItem value="aromatization" className="border rounded-lg px-4">
+                      <AccordionTrigger className="hover:no-underline py-3">
+                        <span className="flex items-center gap-2">
+                          <Info className="h-4 w-4 text-muted-foreground" />
+                          Aromatization Potential (0–10 observational score): {breakdown.scientific_metrics.aromatization.score}
+                        </span>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="space-y-3 text-sm">
+                          {breakdown.scientific_metrics.aromatization.notes && (
+                            <p className="text-muted-foreground">
+                              {breakdown.scientific_metrics.aromatization.notes}
+                            </p>
+                          )}
+                          <Alert className="border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
+                            <AlertTriangle className="h-4 w-4" />
+                            <AlertDescription className="text-xs">
+                              {breakdown.scientific_metrics.aromatization.disclaimer ?? 'Generalized community/literature observation only — individual responses vary dramatically. Not predictive or medical advice.'}
+                            </AlertDescription>
+                          </Alert>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  )}
+                  <AccordionItem value="scientific-metrics" className="border rounded-lg px-4">
+                    <AccordionTrigger className="hover:no-underline py-3">
+                      <span className="flex items-center gap-2">
+                        <Info className="h-4 w-4 text-muted-foreground" />
+                        A:A Ratio (Historical Reference)
+                      </span>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-3 text-sm">
+                        {breakdown.scientific_metrics.aa_ratio ? (
+                          <>
+                            <div className="flex flex-wrap gap-2">
+                              {breakdown.scientific_metrics.aa_ratio.ratio && (
+                                <Badge variant="outline">Ratio: {breakdown.scientific_metrics.aa_ratio.ratio}</Badge>
+                              )}
+                              {breakdown.scientific_metrics.aa_ratio.assay && (
+                                <Badge variant="secondary">{breakdown.scientific_metrics.aa_ratio.assay}</Badge>
+                              )}
+                            </div>
+                            {breakdown.scientific_metrics.aa_ratio.sources && breakdown.scientific_metrics.aa_ratio.sources.length > 0 && (
+                              <p className="text-muted-foreground">
+                                Sources: {breakdown.scientific_metrics.aa_ratio.sources.join(', ')}
+                              </p>
+                            )}
+                          </>
+                        ) : (
+                          <p className="text-muted-foreground italic">
+                            {breakdown.scientific_metrics.display_text ?? 'No historical A:A ratio data available in literature for this compound'}
+                          </p>
+                        )}
+                        <Alert className="border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertDescription className="text-xs">
+                            {breakdown.scientific_metrics.disclaimer ?? 'Historical rodent bioassay data (1950s–1980s) or modern in-vitro selectivity only. Does NOT predict real human muscle growth, side effects, metabolism, dose-response, aromatization, or safety. Educational reference only — not a ranking or recommendation.'}
+                          </AlertDescription>
+                        </Alert>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
               )}
 
               {breakdown.sources && breakdown.sources.length > 0 && (

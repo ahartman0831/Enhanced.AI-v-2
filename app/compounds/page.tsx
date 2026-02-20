@@ -17,6 +17,11 @@ interface Compound {
   affected_systems: string[] | null
   key_monitoring_markers: string[] | null
   nutrition_impact_summary: string | null
+  what_it_is: string | null
+  side_effects: string | null
+  sources: string[] | null
+  aromatization_score: number | null
+  aromatization_notes: string | null
 }
 
 function CompoundsContent() {

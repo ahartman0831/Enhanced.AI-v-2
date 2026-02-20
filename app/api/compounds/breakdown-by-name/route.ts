@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     const { data: existing } = await admin
       .from('compounds')
-      .select('id, name, full_breakdown_json, breakdown_updated_at')
+      .select('id, name, full_breakdown_json, breakdown_updated_at, aa_ratio, aromatization_score, aromatization_notes')
       .ilike('name', name)
       .limit(1)
       .maybeSingle()
@@ -44,25 +44,58 @@ export async function POST(request: NextRequest) {
         breakdownUpdatedAt > cacheCutoff
 
       if (cacheValid && existing.full_breakdown_json) {
-        return NextResponse.json(existing.full_breakdown_json)
+        // Merge scientific_metrics from aa_ratio and aromatization when returning cached breakdown
+        let response = existing.full_breakdown_json as Record<string, unknown>
+        const sciMetrics = (response.scientific_metrics as Record<string, unknown>) || {}
+        if (existing.aa_ratio && !sciMetrics.aa_ratio) {
+          sciMetrics.aa_ratio = existing.aa_ratio
+          sciMetrics.display_text = 'Historical rodent bioassay data only — see disclaimer below'
+          sciMetrics.disclaimer = (existing.aa_ratio as { disclaimer?: string })?.disclaimer ?? 'Historical rodent bioassay data (1950s–1980s) or modern in-vitro selectivity only. Does NOT predict real human muscle growth, side effects, metabolism, dose-response, aromatization, or safety. Ratios vary widely by assay method and are NOT reliable for modern compounds like SARMs. Individual variability is extreme. Educational reference only — not a ranking, recommendation, or prediction of outcomes.'
+        }
+        if (existing.aromatization_score != null || existing.aromatization_notes) {
+          sciMetrics.aromatization = {
+            score: existing.aromatization_score,
+            notes: existing.aromatization_notes,
+            disclaimer: 'Generalized community/literature observation only — individual responses vary dramatically. Not predictive or medical advice.',
+          }
+        }
+        if (Object.keys(sciMetrics).length > 0) {
+          response = { ...response, scientific_metrics: sciMetrics }
+        }
+        return NextResponse.json(response)
       }
 
       const grokResult = await callGrok({
         promptName: 'full_compound_breakdown',
         userId: user.id,
         feature: 'compound-breakdown',
-        variables: { compoundName: existing.name },
+        variables: {
+          compoundName: existing.name,
+          aaRatioJson: existing.aa_ratio ? JSON.stringify(existing.aa_ratio) : 'null',
+        },
       })
 
       if (!grokResult.success) {
+        const status = grokResult._complianceBlocked ? 422 : 500
         return NextResponse.json(
           { error: grokResult.error || 'Failed to generate breakdown' },
-          { status: 500 }
+          { status }
         )
       }
 
       const breakdown = grokResult.data as Record<string, unknown>
       const row = parseBreakdownForDb(breakdown, existing.name)
+
+      // Merge aromatization from DB into response
+      if (existing.aromatization_score != null || existing.aromatization_notes) {
+        const sciMetrics = (breakdown.scientific_metrics as Record<string, unknown>) || {}
+        sciMetrics.aromatization = {
+          score: existing.aromatization_score,
+          notes: existing.aromatization_notes,
+          disclaimer: 'Generalized community/literature observation only — individual responses vary dramatically. Not predictive or medical advice.',
+        }
+        breakdown.scientific_metrics = sciMetrics
+      }
 
       await admin
         .from('compounds')
@@ -71,6 +104,10 @@ export async function POST(request: NextRequest) {
           breakdown_updated_at: now.toISOString(),
           key_monitoring_markers: row.key_monitoring_markers,
           affected_systems: row.affected_systems,
+          what_it_is: row.what_it_is,
+          common_uses: row.common_uses,
+          nutrition_impact_summary: row.nutrition_impact_summary,
+          side_effects: row.side_effects,
         })
         .eq('id', existing.id)
 
@@ -81,13 +118,17 @@ export async function POST(request: NextRequest) {
       promptName: 'full_compound_breakdown',
       userId: user.id,
       feature: 'compound-breakdown',
-      variables: { compoundName: name },
+      variables: {
+        compoundName: name,
+        aaRatioJson: 'null',
+      },
     })
 
     if (!grokResult.success) {
+      const status = grokResult._complianceBlocked ? 422 : 500
       return NextResponse.json(
         { error: grokResult.error || 'Failed to generate breakdown' },
-        { status: 500 }
+        { status }
       )
     }
 
@@ -100,6 +141,10 @@ export async function POST(request: NextRequest) {
       risk_score: row.risk_score,
       affected_systems: row.affected_systems,
       key_monitoring_markers: row.key_monitoring_markers,
+      what_it_is: row.what_it_is,
+      common_uses: row.common_uses,
+      nutrition_impact_summary: row.nutrition_impact_summary,
+      side_effects: row.side_effects,
       full_breakdown_json: row.full_breakdown_json,
       breakdown_updated_at: row.breakdown_updated_at,
     })

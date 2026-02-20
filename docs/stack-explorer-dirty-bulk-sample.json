@@ -1,0 +1,64 @@
+{
+  "report_name": "Dirty Bulk Surge - Advanced Mass Drive",
+  "disclaimer": "Educational information only. This analysis discusses approaches frequently mentioned in health optimization and bodybuilding communities. It is not medical advice, does not recommend any protocol, and should not replace consultation with a qualified physician. Individual responses vary significantly. All compounds referenced are drawn exclusively from the application's vetted compound database.",
+  "common_approaches_discussed": [
+    {
+      "base": "Testosterone Enanthate",
+      "additions": ["NPP", "MK-677", "Masteron"],
+      "benefits": "Threads lose their minds over this combo for dirty bulk — Test base keeps estrogen/prolactin in check while NPP drives appetite and joint support; MK-677 anecdotally reported as an appetite monster with IGF-1 elevation; Masteron commonly discussed for partitioning and hardness. Advanced dirty bulkers chase that rapid scale movement without total water bloat.",
+      "risks": "19-nor + aromatizing base: prolactin and estrogen synergy frequently discussed. Heavy monitoring required — Caber/Prami patterns often mentioned. Lipid disruption, hematocrit elevation, BP concerns in extreme surplus.",
+      "affected_systems": ["Endocrine", "Cardiovascular", "Hepatic", "Renal"],
+      "monitoring": ["Estradiol (E2) — aromatization from Test", "Prolactin — 19-nor pattern", "HDL/LDL — lipid impact", "Hematocrit — RBC elevation", "ALT/AST — hepatic load", "Fasting glucose — MK-677"],
+      "nutrition_impact": "Frequently discussed as supporting aggressive surplus — appetite drive lets advanced users eat through the roof; glycogen supercompensation patterns mentioned for rapid scale weight."
+    },
+    {
+      "base": "Testosterone Enanthate",
+      "additions": ["Boldenone", "MK-677", "Cardarine"],
+      "benefits": "Boldenone commonly discussed for steady appetite and lean-ish mass; MK-677 for glycogen bombs and hunger; Cardarine anecdotally reported for metabolic partitioning and lipid support. Forums light up over surplus tolerance without total metabolic derangement.",
+      "risks": "Multiple compounds — additive endocrine load. Boldenone estrogen conversion; MK-677 glucose/insulin patterns. Lipid monitoring critical.",
+      "affected_systems": ["Endocrine", "Cardiovascular", "Metabolic"],
+      "monitoring": ["Estradiol (E2)", "HDL/LDL", "Fasting glucose", "HbA1c", "ALT/AST"],
+      "nutrition_impact": "Patterns in extreme bulking discussions: aggressive surplus with improved protein utilization; glycogen supercompensation commonly mentioned."
+    },
+    {
+      "base": "Testosterone Enanthate",
+      "additions": ["Primobolan", "MK-677"],
+      "benefits": "Lower-androgenic option — Primobolan frequently mentioned for lean mass without heavy virilization; MK-677 for appetite and recovery. Communities discuss this as a 'cleaner' dirty bulk approach with less water retention.",
+      "risks": "Primobolan can suppress HPTA; Test base mitigates. MK-677 glucose/insulin considerations.",
+      "affected_systems": ["Endocrine", "Metabolic"],
+      "monitoring": ["Estradiol (E2)", "Fasting glucose", "HDL/LDL", "ALT/AST"],
+      "nutrition_impact": "Goal-tailored surplus support; appetite stimulation commonly discussed for mass gain."
+    }
+  ],
+  "commonly_discussed_supports": [
+    { "name": "Fish Oil", "common_purpose": "cardiovascular and lipid support", "affected_system": "Cardiovascular", "amazon_affiliate_link": "https://amazon.com/dp/B001E5E2V8?tag=enhancedai-20" },
+    { "name": "NAC", "common_purpose": "hepatic and antioxidant support", "affected_system": "Liver", "amazon_affiliate_link": "https://amazon.com/dp/B001E5E2V8?tag=enhancedai-20" },
+    { "name": "TUDCA", "common_purpose": "hepatic support", "affected_system": "Liver", "amazon_affiliate_link": "https://amazon.com/dp/B001E5E2V8?tag=enhancedai-20" },
+    { "name": "CoQ10", "common_purpose": "cardiovascular and mitochondrial support", "affected_system": "Cardiovascular", "amazon_affiliate_link": "https://amazon.com/dp/B001E5E2V8?tag=enhancedai-20" }
+  ],
+  "nutrition_impact": {
+    "summary": "Dirty bulk patterns in advanced forums emphasize aggressive surplus tolerance — appetite monsters like MK-677 commonly discussed for eating through the roof; glycogen bombs and rapid scale movement frequently mentioned. Communities stress metabolic monitoring and body comp tracking even in surplus.",
+    "key_discussions": ["Appetite stimulation for extreme surplus", "Glycogen supercompensation", "Rapid scale weight without total metabolic derangement", "Body composition monitoring in dirty bulk"],
+    "proteinConsiderations": "High protein commonly discussed to support mass — 1g+ per lb bodyweight patterns in extreme bulking threads.",
+    "calorieManagement": "Aggressive surplus tolerance — communities discuss eating through appetite; metabolic health monitoring emphasized.",
+    "micronutrientFocus": "Electrolytes, magnesium, zinc for endocrine support; fiber for digestive health in high-calorie intake.",
+    "timingStrategies": "Frequent meals commonly discussed to support appetite and glycogen; peri-workout nutrition patterns for mass drive.",
+    "supplementSynergy": "Support compounds (NAC, TUDCA, Fish Oil) frequently mentioned alongside aggressive nutrition for hepatic and lipid support."
+  },
+  "commonly_discussed_combo_risks": [
+    "19-nor (NPP) + Test frequently mentioned for prolactin/estrogen synergy — Caber/Prami patterns in advanced discussions",
+    "MK-677 + insulinogenic compounds — glucose monitoring commonly stressed",
+    "Multiple aromatizers — estrogen management patterns in dirty bulk threads"
+  ],
+  "bloodwork_markers_to_monitor": [
+    { "marker": "HDL/LDL", "why": "Lipid disruption commonly discussed with multiple compounds" },
+    { "marker": "ALT/AST", "why": "Hepatic load with stacked compounds" },
+    { "marker": "Estradiol (E2)", "why": "Aromatization from Test and Boldenone" },
+    { "marker": "Prolactin", "why": "19-nor pattern with NPP" },
+    { "marker": "Hematocrit", "why": "RBC elevation with androgens" },
+    { "marker": "Fasting glucose", "why": "MK-677 insulin/glucose patterns" },
+    { "marker": "HbA1c", "why": "Metabolic monitoring in surplus" }
+  ],
+  "safety_notes": "Strong bloodwork baseline and 4–8 week monitoring. Physician consult mandatory. Individual variability significant. 19-nor approaches require Test base — communities universally stress this. Extreme surplus carries metabolic and CV risks.",
+  "next_step": "Discuss any health optimization strategy with a qualified physician."
+}

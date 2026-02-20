@@ -17,7 +17,7 @@ export function useSubscriptionTier() {
         if (!cancelled && data?.tier != null) {
           const t = String(data.tier).toLowerCase().trim()
           if (t === 'elite') setTier('elite')
-          else if (t === 'paid') setTier('paid')
+          else if (t === 'paid' || t === 'pro') setTier('paid')
           else setTier('free')
         } else if (!cancelled) {
           setTier('free')

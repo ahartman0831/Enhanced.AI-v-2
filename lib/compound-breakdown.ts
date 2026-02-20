@@ -22,6 +22,17 @@ export function parseBreakdownForDb(breakdown: Record<string, unknown>, compound
       .filter(Boolean)
   }
 
+  function risksToStr(v: unknown): string | null {
+    if (v != null && typeof v === 'string') return v
+    if (v != null && typeof v === 'object' && !Array.isArray(v)) {
+      const parts = Object.values(v)
+        .filter((x) => x != null && typeof x === 'string')
+        .map((x) => String(x))
+      return parts.length > 0 ? parts.join(' ') : null
+    }
+    return null
+  }
+
   return {
     name: compoundName,
     category: 'Other',
@@ -31,7 +42,7 @@ export function parseBreakdownForDb(breakdown: Record<string, unknown>, compound
     key_monitoring_markers: toStrArray(breakdown.monitoring_markers) ?? arr(breakdown.monitoring_markers),
     nutrition_impact_summary: str(breakdown.nutrition_impact) ?? null,
     what_it_is: str(breakdown.what_it_is) ?? null,
-    side_effects: str(breakdown.risks_and_side_effects) ?? null,
+    side_effects: risksToStr(breakdown.risks_and_side_effects) ?? null,
     full_breakdown_json: breakdown,
     breakdown_updated_at: new Date().toISOString(),
   }

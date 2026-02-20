@@ -9,10 +9,12 @@ IMPORTANT MEDICAL DISCLAIMER: This is for EDUCATIONAL PURPOSES ONLY. Recovery ti
 Based on the user's latest protocol data and bloodwork results, provide an educational overview of commonly discussed recovery timeline considerations and PCT approaches. Structure your response as valid JSON with this exact format:
 
 {
+  "plainEnglishSummary": "A well-thought-out 2–4 paragraph summary in plain layman's terms. Explain to the user everything they are about to read below: what recovery timelines mean, what the phases represent, what PCT is (in simple terms), what blood markers tell us, and how side effects typically resolve. Write as if explaining to a friend with no medical background. Avoid jargon. Set expectations that timelines vary and this is educational only.",
   "recoveryTimeline": [
     {
       "phase": "Phase Name (e.g., 'Acute Recovery', 'Extended Recovery')",
       "timeframe": "Typical timeframe range discussed",
+      "plainEnglishExpectations": "2–4 sentences in plain English: What people may expect to see during this phase in terms of measurable recovery (e.g., blood markers improving, energy returning) and side effect disappearance (e.g., which symptoms often fade first, what might still linger). Be specific about what typically improves and when, in everyday language.",
       "keyConsiderations": [
         "Educational point about what happens during this phase",
         "Common monitoring recommendations",
@@ -40,12 +42,57 @@ Based on the user's latest protocol data and bloodwork results, provide an educa
     "Frequency of monitoring often discussed",
     "Signs that may suggest professional consultation needed"
   ],
-  "educationalNotes": "General educational reminders about recovery variability, importance of medical supervision, gradual changes, etc."
+  "educationalNotes": "General educational reminders about recovery variability, importance of medical supervision, gradual changes, etc.",
+  "graphData": {
+    "phases": [
+      {
+        "phase": "Phase Name",
+        "startWeek": 0,
+        "endWeek": 4,
+        "color": "#3b82f6",
+        "compoundAdjustments": {}
+      }
+    ],
+    "compoundCurves": [
+      {
+        "compound": "Compound name from user protocol",
+        "recoverySlope": "slower|standard|faster",
+        "suppressionWeeks": 4,
+        "notes": "Brief note (e.g., ester-dependent)"
+      }
+    ],
+    "sideEffectOverlays": [
+      {
+        "symptom": "From user's logged sides",
+        "typicalDissipationWeek": 6,
+        "note": "Often discussed timeline"
+      }
+    ],
+    "harshRealityNote": "Severe cases often discuss HCG/Clomid/TRT—pro intervention key."
+  }
 }
+
+## Compound Mapping Table (Use for User's Compounds)
+
+Apply these adjustments when the user's protocol includes these compounds. Tie to bloodwork (e.g., low Test = extend curve), sides (overlay dissipation), protocol length/esters.
+
+| Compound | Curve Adjustment | Symptom Dissipation | Return to Normal | Harsh Reality |
+|----------|------------------|---------------------|------------------|---------------|
+| Trestolone (MENT) | Steeper hormone dip (4–6 weeks extra) | Libido/mood: 4–8 weeks post-prolactin | 8–16 weeks HPTA | Often discuss Clomid/HCG; TRT if stalled. |
+| Trenbolone | Steeper dip, extended suppression | Prolactin-related: 4–8 weeks | 8–16 weeks | Severe shutdown—HCG/Clomid common in forums. |
+| Testosterone | Standard rebound | Minimal if base used | 4–8 weeks baseline | Rare long-term issues per forums. |
+| HGH | Faster hormone rise | IGF: 2–4 weeks | Quick rebound | Focus on joint recovery. |
+| Deca/Nandrolone | Extended 8–16 weeks | Joint/lubrication: variable | 12–24 weeks | Long ester—often discuss extended PCT. |
+| Anavar/Oxandrolone | Shorter 2–4 weeks | Liver markers: 2–4 weeks | Quick | Oral—shorter half-life. |
+| Winstrol | Moderate 4–6 weeks | Joint/cardio: 4–6 weeks | 4–8 weeks | Often discuss joint support. |
+
+Note: Timelines may vary by ester (short-acting faster vs long-acting). If user did not specify ester, note "may vary by short/long-acting."
 
 ## Guidelines for Educational Content
 
-1. **Focus on Education**: Discuss concepts, mechanisms, and common community observations without providing specific protocols or dosages.
+1. **Plain English First**: The plainEnglishSummary and plainEnglishExpectations are critical. Write them in everyday language—no medical jargon. Explain what recovery means, what phases to expect, what blood markers indicate, and what typically improves when. For each phase, be specific about measurable recovery (e.g., "Testosterone levels often start climbing back toward normal") and side effect disappearance (e.g., "Acne and water retention often improve first; libido may take longer").
+
+2. **Focus on Education**: Discuss concepts, mechanisms, and common community observations without providing specific protocols or dosages.
 
 2. **Recovery Variability**: Emphasize that recovery timelines vary significantly and are highly individual.
 
@@ -55,12 +102,29 @@ Based on the user's latest protocol data and bloodwork results, provide an educa
 
 5. **Monitoring Importance**: Stress the educational value of regular bloodwork and health monitoring.
 
-6. **PCT Context**: Discuss PCT as an educational concept without providing specific recommendations.
+6. **PCT Context**: Discuss PCT as an educational concept without specific recommendations.
+
+8. **Compound Specificity**: For each listed compound, provide specific timeline/risk notes (e.g., Trenbolone: "HPTA suppression often discussed as severe, with recovery commonly 4–12 weeks"). Use web_search/x_keyword_search for current community patterns if needed.
+
+9. **Symptom Dissipation**: Tie timelines to logged side effects (e.g., "Libido recovery often discussed as 4–8 weeks post-prolactin elevation").
+
+10. **Return to Normal**: Note that "Commonly discussed as 6–12 weeks for baseline functionality—monitor via bloodwork."
+
+11. **Harsh Realities**: In severe shutdown patterns, communities often discuss interventions like HCG/Clomid for stimulation or TRT if natural recovery stalls—pro intervention essential. Acknowledge these realities educationally without prescribing.
+
+12. **Ester Flagging**: Timelines may vary by ester type – short-acting esters (e.g., propionate, acetate) are often discussed with faster clearance and shorter half-lives; long-acting esters (e.g., enanthate, cypionate, decanoate) with prolonged effects and slower clearance. If the user did not specify ester type, note: "Timelines may vary by ester—short-acting (e.g., acetate) often faster vs long-acting (e.g., enanthate)—user did not specify."
+
+13. **CTAs**: In monitoringProtocol, add educational CTAs for monitoring. Include: "Order bloodwork (Quest: {questUrl})" and "Telehealth consult (Hims: {himsUrl}, LetsGetChecked: {letsGetCheckedUrl})" as educational resources. Always include these CTAs when discussing monitoring.
+
+14. **Graph Data**: Populate graphData from user's compounds using the mapping table. For each compound in the user's protocol, add a compoundCurves entry with recoverySlope, suppressionWeeks, and notes. Add sideEffectOverlays for each logged side effect with typicalDissipationWeek. Set harshRealityNote: "Severe cases often discuss HCG/Clomid/TRT—pro intervention key." Phase colors: Acute=#3b82f6, Extended=#10b981, Long-term=#f59e0b.
+
+15. **User-Tied Adjustments**: If bloodwork shows low Test, extend suppression curves. If user logged sides (e.g., libido, prolactin), add to sideEffectOverlays. Protocol length and esters affect curves—note "may vary by short/long-acting" when ester unspecified.
 
 ## User Data Integration
 
 Latest Protocol: {protocolData}
 Bloodwork Results: {bloodworkData}
+{cycleContext}
 
 ## Analysis Approach
 
@@ -68,6 +132,7 @@ Bloodwork Results: {bloodworkData}
 - **Individual Factors**: Consider protocol duration, compound types, and baseline health
 - **Monitoring Framework**: Provide educational monitoring recommendations
 - **PCT Education**: Discuss PCT concepts without specific protocols
+- **Data Source Note**: If a "Data note" appears in the user context (e.g., "Based on previous logs – verify with physician"), include that disclaimer in educationalNotes so the output clearly states the analysis is based on prior data.
 
 Always frame discussions as educational explorations of concepts commonly discussed in health optimization communities, not diagnostic or prescriptive advice.
 

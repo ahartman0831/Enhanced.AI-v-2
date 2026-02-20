@@ -27,7 +27,13 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = await request.json()
+    let body: { names?: string[] } = {}
+    try {
+      const text = await request.text()
+      body = text ? JSON.parse(text) : {}
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
     const names = Array.isArray(body?.names) ? body.names : []
 
     if (names.length === 0) {

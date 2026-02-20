@@ -10,7 +10,16 @@ export async function GET() {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    return NextResponse.json(user)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('dev_mode_enabled')
+      .eq('id', user.id)
+      .single()
+
+    return NextResponse.json({
+      ...user,
+      dev_mode_enabled: profile?.dev_mode_enabled ?? false,
+    })
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

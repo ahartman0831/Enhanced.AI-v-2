@@ -1,0 +1,25 @@
+{
+  "disclaimer": "This is educational information based on scientific literature and patterns commonly discussed in bodybuilding communities. It is not medical advice, not a recommendation, and not a diagnosis. Always consult your physician and follow all applicable laws.",
+  "layman_summary": "Dianabol (methandrostenolone) is an oral anabolic steroid historically discussed for rapid mass gains. It carries significant liver and cardiovascular risks. Users should monitor liver enzymes, lipids, and blood pressure.",
+  "what_it_is": "Methandrostenolone, a 17-alpha alkylated oral anabolic steroid. Binds androgen receptors; aromatizes to estrogen. Short half-life (~3–6 hours).",
+  "medical_uses": "Historically used for catabolic conditions; largely discontinued due to hepatotoxicity.",
+  "bodybuilding_discussions": "Commonly discussed for rapid mass gains and strength; frequently mentioned in bulking phases.",
+  "risks_and_side_effects": "Liver toxicity, estrogenic effects, water retention, lipid disruption, hypertension.",
+  "affected_systems": ["Hepatic", "Endocrine", "Cardiovascular"],
+  "monitoring_markers": ["ALT", "AST", "HDL", "LDL", "Estradiol", "Blood Pressure"],
+  "nutrition_impact": "Commonly discussed as increasing appetite and glycogen storage.",
+  "common_interactions": "High-risk when combined with other hepatotoxic or aromatizing compounds.",
+  "scientific_metrics": {
+    "aa_ratio": {
+      "anabolic": 3,
+      "androgenic": 1,
+      "ratio": "3:1 – 30:1",
+      "assay": "Hershberger rodent bioassay",
+      "sources": ["Vida 1969"],
+      "disclaimer": "Historical rodent bioassay data (1950s–1980s) or modern in-vitro selectivity only. Does NOT predict real human muscle growth, side effects, metabolism, dose-response, aromatization, or safety. Ratios vary widely by assay method and are NOT reliable for modern compounds like SARMs. Individual variability is extreme. Educational reference only — not a ranking, recommendation, or prediction of outcomes."
+    },
+    "display_text": "Historical rodent bioassay data only — see disclaimer below",
+    "disclaimer": "Historical rodent bioassay data (1950s–1980s) or modern in-vitro selectivity only. Does NOT predict real human muscle growth, side effects, metabolism, dose-response, aromatization, or safety. Ratios vary widely by assay method and are NOT reliable for modern compounds like SARMs. Individual variability is extreme. Educational reference only — not a ranking, recommendation, or prediction of outcomes."
+  },
+  "sources": ["PubMed", "DrugBank"]
+}

@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
-  Shield,
   Search,
   FileText,
   Camera,
@@ -17,20 +16,17 @@ import {
   Crown,
   Star,
   ArrowRight,
-  Users,
   Award
 } from 'lucide-react'
+import { ThemeProvider } from '@/components/ThemeProvider'
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-cyan-500/10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <Logo size="md" showText={true} className="[&_span]:text-cyan-600 [&_span]:dark:text-cyan-400" />
-          </Link>
-          <div className="flex items-center gap-3">
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
+      <div className="min-h-screen bg-background">
+        {/* Header */}
+        <header className="sticky top-0 z-50 border-b border-cyan-500/10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="container mx-auto px-4 py-4 flex items-center justify-end gap-3">
             <Link href="/login">
               <Button variant="ghost">Sign In</Button>
             </Link>
@@ -38,26 +34,15 @@ export default function LandingPage() {
               <Button className="bg-cyan-600 hover:bg-cyan-700 text-white">Get Started</Button>
             </Link>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-cyan-500/5 via-background to-cyan-500/5 dark:from-cyan-950/20 dark:via-background dark:to-cyan-950/20 border-b border-cyan-500/10">
-        <div className="container mx-auto px-4 py-16 sm:py-24">
-          <div className="text-center max-w-4xl mx-auto">
-            <div className="flex items-center justify-center gap-3 mb-6">
-              <Logo size="xl" showText={true} className="justify-center [&_span]:text-3xl sm:[&_span]:text-5xl [&_span]:text-cyan-600 [&_span]:dark:text-cyan-400" />
-            </div>
-            <p className="text-xl sm:text-2xl text-muted-foreground mb-8">
-              Safety & Optimization Tools for Serious Athletes
-            </p>
-            <p className="text-lg text-muted-foreground mb-12 max-w-2xl mx-auto">
-              Educational health analysis powered by AI. Explore supplementation strategies,
-              analyze bloodwork, track progress, and make informed decisions with professional-grade tools.
-            </p>
-
-            {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+        {/* Hero Section - Logo only, large at top */}
+        <section className="relative min-h-[50vh] flex flex-col items-center justify-center bg-background border-b border-cyan-500/10">
+          <div className="flex flex-col items-center justify-center w-full px-4">
+            <Link href="/" className="block mb-8">
+              <Logo size="fill" showText={false} className="h-36 w-72 sm:h-44 sm:w-80 md:h-56 md:w-96 [&_img]:object-contain" />
+            </Link>
+            <div className="flex flex-col sm:flex-row gap-4">
               <Link href="/dashboard">
                 <Button size="lg" className="w-full sm:w-auto bg-cyan-600 hover:bg-cyan-700 text-white">
                   Get Started Free
@@ -65,23 +50,13 @@ export default function LandingPage() {
                 </Button>
               </Link>
               <Link href="/login">
-                <Button size="lg" variant="outline" className="w-full sm:w-auto border-cyan-500/50 text-cyan-600 hover:bg-cyan-500/10 dark:text-cyan-400 dark:border-cyan-400/50 dark:hover:bg-cyan-500/10">
+                <Button size="lg" variant="outline" className="w-full sm:w-auto border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10">
                   Sign In
                 </Button>
               </Link>
             </div>
-
-            {/* Hero Disclaimer */}
-            <Alert className="max-w-2xl mx-auto border-cyan-500/20 bg-cyan-500/5 dark:bg-cyan-950/20 dark:border-cyan-800/50">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription className="text-sm">
-                <strong>Educational Purpose Only:</strong> This platform provides educational information about health optimization concepts.
-                Not medical advice. Always consult qualified healthcare professionals before making changes to your health regimen.
-              </AlertDescription>
-            </Alert>
           </div>
-        </div>
-      </section>
+        </section>
 
       {/* Features Section */}
       <section className="py-16 bg-cyan-500/5 dark:bg-cyan-950/10">
@@ -277,19 +252,19 @@ export default function LandingPage() {
               <CardContent className="space-y-4">
                 <ul className="space-y-2">
                   <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-cyan-500" />
-                    Basic compound database
+                    <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                    Compounds database
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-cyan-500" />
-                    Educational analysis
+                    <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                    Order blood test
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-cyan-500" />
-                    Progress tracking
+                    <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                    Profile & subscription
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-cyan-500" />
+                    <CheckCircle className="h-4 w-4 text-muted-foreground" />
                     Community discussions
                   </li>
                 </ul>
@@ -309,84 +284,62 @@ export default function LandingPage() {
                   <Award className="h-5 w-5 text-cyan-500" />
                   Pro
                 </CardTitle>
-                <CardDescription>Advanced analysis tools</CardDescription>
+                <CardDescription>Exploration, modeling & educational tools</CardDescription>
                 <div className="text-3xl font-bold">$19<span className="text-base font-normal">/month</span></div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="text-sm text-muted-foreground mb-4">
-                  Everything in Free, plus:
-                </div>
-                <ul className="space-y-2">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-cyan-500" />
-                    Stack Explorer
+                <ul className="space-y-3">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-cyan-500 shrink-0 mt-0.5" />
+                    <span>🧪 Exploration — Stack Explorer, Side Effects, Counterfeit Checker</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-cyan-500" />
-                    Bloodwork analysis
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-cyan-500 shrink-0 mt-0.5" />
+                    <span>📊 Modeling — Progress Photos, Results Forecaster, Supplement Analyzer</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-cyan-500" />
-                    Photo progress tracking
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-cyan-500" />
-                    Side effects monitoring
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-cyan-500" />
-                    Advanced reporting
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-cyan-500" />
-                    Priority support
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-cyan-500 shrink-0 mt-0.5" />
+                    <span>⚙️ Educational Tools — Advanced analysis and reporting</span>
                   </li>
                 </ul>
-                <Button className="w-full" variant="outline">Coming Soon</Button>
+                <Link href="/subscription">
+                  <Button className="w-full bg-cyan-600 hover:bg-cyan-700 text-white">Upgrade to Pro</Button>
+                </Link>
               </CardContent>
             </Card>
 
             {/* Elite Plan */}
-            <Card className="relative bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 border-amber-200 dark:border-amber-800">
+            <Card className="relative bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 border-amber-200 dark:border-amber-800 shadow-lg shadow-amber-500/10">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Crown className="h-5 w-5 text-amber-600" />
                   Elite
                 </CardTitle>
-                <CardDescription>Professional-grade health optimization</CardDescription>
-                <div className="text-3xl font-bold">$39<span className="text-base font-normal">/month</span></div>
+                <CardDescription>Biomarker intelligence & doctor-ready exports</CardDescription>
+                <div className="text-3xl font-bold">$29.99<span className="text-base font-normal">/month</span></div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="text-sm text-muted-foreground mb-4">
-                  Everything in Pro, plus:
-                </div>
-                <ul className="space-y-2">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-cyan-500" />
-                    <strong>Doctor consultation packages</strong>
+                <ul className="space-y-3">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                    <span>🔬 Biomarker Intelligence — Bloodwork Parser, lab analysis</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-cyan-500" />
-                    <strong>Lab testing partnerships</strong>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                    <span>📈 Longitudinal Tracking — Bloodwork History, trends over time</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-cyan-500" />
-                    TRT optimization protocols
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                    <span>🧠 Personalized Recovery Modeling — Recovery Timeline, PCT considerations</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-cyan-500" />
-                    Specialist referrals
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-cyan-500" />
-                    Custom treatment plans
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="h-4 w-4 text-cyan-500" />
-                    24/7 medical support
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                    <span>📄 Doctor-Ready Exports — Telehealth Referral packages, PDF exports</span>
                   </li>
                 </ul>
-                <Button className="w-full bg-amber-600 hover:bg-amber-700 text-white" variant="outline">Coming Soon</Button>
+                <Link href="/subscription">
+                  <Button className="w-full bg-amber-600 hover:bg-amber-700 text-white">Upgrade to Elite</Button>
+                </Link>
               </CardContent>
             </Card>
           </div>
@@ -462,5 +415,6 @@ export default function LandingPage() {
         </div>
       </section>
     </div>
+    </ThemeProvider>
   )
 }

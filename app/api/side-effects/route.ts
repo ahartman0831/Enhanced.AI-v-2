@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { getSubscriptionTier, requireTier } from '@/lib/subscription-gate'
 import { createSupabaseAdminClient } from '@/lib/supabase-admin'
 import { callGrok } from '@/lib/grok'
 import { validateSideEffectAnalysis } from '@/lib/side-effect-schema'
@@ -23,9 +24,15 @@ export async function GET() {
       )
     }
 
+    const tier = await getSubscriptionTier(supabase, user.id)
+    const gate = requireTier(tier, 'pro')
+    if (!gate.allowed) {
+      return gate.response
+    }
+
     const { data, error } = await supabase
       .from('side_effect_logs')
-      .select('id, compounds, dosages, side_effects, analysis_result, created_at')
+      .select('id, compounds, dosages, side_effects, additional_supplements, analysis_result, created_at')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(50)
@@ -71,9 +78,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const tier = await getSubscriptionTier(supabase, user.id)
+    const gate = requireTier(tier, 'pro')
+    if (!gate.allowed) {
+      return gate.response
+    }
+
     // Parse request body
     const body = await request.json()
-    const { compounds, dosages, sideEffects } = body
+    const { compounds, dosages, sideEffects, additionalSupplements } = body
 
     if (!compounds || compounds.length === 0 || !sideEffects || sideEffects.length === 0) {
       return NextResponse.json(
@@ -215,9 +228,10 @@ export async function POST(request: NextRequest) {
     })
 
     if (!grokResult.success) {
+      const status = grokResult._complianceBlocked ? 422 : 500
       return NextResponse.json(
         { error: grokResult.error || 'Failed to analyze side effects' },
-        { status: 500 }
+        { status }
       )
     }
 
@@ -246,6 +260,7 @@ export async function POST(request: NextRequest) {
         compounds: compounds,
         dosages: dosages,
         side_effects: sideEffects,
+        additional_supplements: additionalSupplements?.trim() || null,
         analysis_result: validatedData
       })
       .select()

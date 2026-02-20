@@ -23,6 +23,7 @@ import { SideEffectsCompoundInput } from '@/components/SideEffectsCompoundInput'
 import { PersonalizedSuppStack } from '@/components/PersonalizedSuppStack'
 import { CommonSupportsCard } from '@/components/CommonSupportsCard'
 import { useSubscriptionTier } from '@/hooks/useSubscriptionTier'
+import { TierGate } from '@/components/TierGate'
 import {
   AlertTriangle,
   Plus,
@@ -104,6 +105,13 @@ const DOSAGE_ROUTES = [
   { value: 'transdermal', label: 'Transdermal' },
   { value: 'nasal', label: 'Nasal' },
   { value: 'other', label: 'Other' },
+] as const
+
+const DURATION_UNITS = [
+  { value: 'days', label: 'Days' },
+  { value: 'weeks', label: 'Weeks' },
+  { value: 'months', label: 'Months' },
+  { value: 'years', label: 'Years' },
 ] as const
 
 const COMMON_SIDE_EFFECTS = [
@@ -192,7 +200,7 @@ export default function SideEffectsPage() {
   const addCompound = (name: string) => {
     if (name && !selectedCompounds.includes(name)) {
       setSelectedCompounds([...selectedCompounds, name])
-      setCompoundDosages((prev) => ({ ...prev, [name]: { amount: '', unit: 'mg', frequency: 'weekly', route: 'im' } }))
+      setCompoundDosages((prev) => ({ ...prev, [name]: { amount: '', unit: 'mg', frequency: 'weekly', route: 'im', durationValue: '', durationUnit: 'weeks' } }))
     }
   }
 
@@ -221,9 +229,12 @@ export default function SideEffectsPage() {
       const unit = d.unit && d.unit !== 'other' ? d.unit : ''
       const freqLabel = DOSAGE_FREQUENCIES.find((f) => f.value === d.frequency)?.label ?? d.frequency
       const routeLabel = DOSAGE_ROUTES.find((r) => r.value === d.route)?.label ?? d.route
+      const durVal = (d.durationValue ?? '').trim()
+      const durUnit = d.durationUnit || 'weeks'
+      const durationStr = durVal && /^\d+$/.test(durVal) ? `, ${durVal} ${DURATION_UNITS.find((u) => u.value === durUnit)?.label ?? durUnit} used (no break)` : ''
       if (amount) {
         const unitStr = unit ? ` ${unit}` : ''
-        parts.push(`${name}: ${amount}${unitStr} ${freqLabel} (${routeLabel})`.replace(/\s+/g, ' ').trim())
+        parts.push(`${name}: ${amount}${unitStr} ${freqLabel} (${routeLabel})${durationStr}`.replace(/\s+/g, ' ').trim())
       } else {
         parts.push(`${name}: (not specified)${routeLabel ? ` — ${routeLabel}` : ''}`)
       }
@@ -271,7 +282,8 @@ export default function SideEffectsPage() {
         body: JSON.stringify({
           compounds: selectedCompounds,
           dosages: buildDosagesString(),
-          sideEffects: selectedSideEffects
+          sideEffects: selectedSideEffects,
+          additionalSupplements: dosageNotes.trim() || undefined
         })
       })
 
@@ -357,6 +369,7 @@ export default function SideEffectsPage() {
   }
 
   return (
+    <TierGate>
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         {/* Header */}
@@ -386,7 +399,7 @@ export default function SideEffectsPage() {
                   Select Compounds & Dosages
                 </CardTitle>
                 <CardDescription>
-                  Add compounds below. For each compound, enter amount, unit, frequency, and route of administration.
+                  Add compounds below. For each compound, enter amount, unit, frequency, route, and length of time used.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -407,10 +420,10 @@ export default function SideEffectsPage() {
                     <div className="space-y-3 pt-2 border-t">
                       <Label className="text-base font-semibold">Dosages (Optional)</Label>
                       <p className="text-xs text-muted-foreground -mt-1">
-                        Enter amount, unit, frequency, and method of administration for each compound.
+                        Enter amount, unit, frequency, route, and length of time used for each compound.
                       </p>
                       {selectedCompounds.map((name) => {
-                        const d = compoundDosages[name] ?? { amount: '', unit: 'mg', frequency: 'weekly', route: 'im' }
+                        const d = compoundDosages[name] ?? { amount: '', unit: 'mg', frequency: 'weekly', route: 'im', durationValue: '', durationUnit: 'weeks' }
                         return (
                           <div key={name} className="rounded-lg border bg-muted/30 p-4 space-y-3">
                             <div className="flex items-center justify-between">
@@ -424,7 +437,7 @@ export default function SideEffectsPage() {
                                 <X className="h-4 w-4" />
                               </button>
                             </div>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                               <div className="space-y-1.5">
                                 <Label className="text-xs">Amount</Label>
                                 <Input
@@ -480,7 +493,33 @@ export default function SideEffectsPage() {
                                   </SelectContent>
                                 </Select>
                               </div>
+                              <div className="space-y-1.5">
+                                <Label className="text-xs">Length used</Label>
+                                <Input
+                                  type="text"
+                                  inputMode="numeric"
+                                  placeholder="e.g. 12"
+                                  value={d.durationValue ?? ''}
+                                  onChange={(e) => updateCompoundDosage(name, 'durationValue', e.target.value)}
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label className="text-xs">Unit</Label>
+                                <Select value={d.durationUnit ?? 'weeks'} onValueChange={(v) => updateCompoundDosage(name, 'durationUnit', v)}>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {DURATION_UNITS.map((u) => (
+                                      <SelectItem key={u.value} value={u.value}>
+                                        {u.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
                             </div>
+                            <p className="text-xs text-muted-foreground">Time used without a break</p>
                           </div>
                         )
                       })}
@@ -1075,5 +1114,6 @@ export default function SideEffectsPage() {
         )}
       </div>
     </div>
+    </TierGate>
   )
 }

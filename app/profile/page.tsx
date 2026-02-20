@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   User,
   Shield,
@@ -25,6 +26,12 @@ import {
   ArrowRight
 } from 'lucide-react'
 import { useSubscriptionTier } from '@/hooks/useSubscriptionTier'
+
+const GOALS_OPTIONS = [
+  'Contest Prep', 'Lean Bulk', 'Dirty Bulk', 'Cut', 'TRT Optimization',
+  'Strength Gains', 'Strength Density', 'General Health Optimization',
+  'Recovery Enhancement', 'Endurance Improvement', 'Body Recomposition', 'Other'
+]
 
 interface ProfileData {
   age: number | null
@@ -61,7 +68,14 @@ export default function ProfilePage() {
       const response = await fetch('/api/profile')
       if (response.ok) {
         const data = await response.json()
-        setProfile(data)
+        setProfile({
+          age: data.age ?? null,
+          sex: data.sex ?? null,
+          weight_lbs: data.weight_lbs ?? null,
+          goals: data.goals ?? null,
+          experience_level: data.experience_level ?? null,
+          risk_tolerance: data.risk_tolerance ?? null
+        })
       }
     } catch (err: any) {
       setError('Failed to load profile')
@@ -91,12 +105,19 @@ export default function ProfilePage() {
     setError(null)
     setSuccess(null)
 
-    try {
-      const response = await fetch('/api/profile', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(profile)
-      })
+      try {
+        const response = await fetch('/api/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            age: profile.age,
+            sex: profile.sex,
+            weight_lbs: profile.weight_lbs,
+            goals: profile.goals,
+            experience_level: profile.experience_level,
+            risk_tolerance: profile.risk_tolerance
+          })
+        })
 
       if (!response.ok) {
         throw new Error('Failed to save profile')
@@ -257,58 +278,74 @@ export default function ProfilePage() {
 
               <div className="space-y-2">
                 <Label htmlFor="sex">Sex</Label>
-                <select
-                  id="sex"
-                  value={profile.sex || ''}
-                  onChange={(e) => handleProfileChange('sex', e.target.value || null)}
-                  className="w-full px-3 py-2 border border-input bg-background rounded-md"
-                >
-                  <option value="">Select sex</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="other">Other</option>
-                </select>
+                <Select value={profile.sex || ''} onValueChange={(v) => handleProfileChange('sex', v || null)}>
+                  <SelectTrigger id="sex">
+                    <SelectValue placeholder="Select sex" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                    <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="experience">Experience Level</Label>
-                <select
-                  id="experience"
-                  value={profile.experience_level || ''}
-                  onChange={(e) => handleProfileChange('experience_level', e.target.value || null)}
-                  className="w-full px-3 py-2 border border-input bg-background rounded-md"
-                >
-                  <option value="">Select experience level</option>
-                  <option value="beginner">Beginner (0-6 months)</option>
-                  <option value="intermediate">Intermediate (6-24 months)</option>
-                  <option value="advanced">Advanced (2+ years)</option>
-                </select>
+                <Select value={profile.experience_level || ''} onValueChange={(v) => handleProfileChange('experience_level', v || null)}>
+                  <SelectTrigger id="experience">
+                    <SelectValue placeholder="Select experience level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None (New to PEDs)</SelectItem>
+                    <SelectItem value="beginner">Beginner (0-6 months)</SelectItem>
+                    <SelectItem value="intermediate">Intermediate (6-24 months)</SelectItem>
+                    <SelectItem value="advanced">Advanced (2+ years)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="risk-tolerance">Risk Tolerance</Label>
-                <select
-                  id="risk-tolerance"
-                  value={profile.risk_tolerance || ''}
-                  onChange={(e) => handleProfileChange('risk_tolerance', e.target.value || null)}
-                  className="w-full px-3 py-2 border border-input bg-background rounded-md"
-                >
-                  <option value="">Select risk tolerance</option>
-                  <option value="low">Low - Conservative approach</option>
-                  <option value="medium">Medium - Balanced approach</option>
-                  <option value="high">High - Aggressive optimization</option>
-                </select>
+                <Select value={profile.risk_tolerance || ''} onValueChange={(v) => handleProfileChange('risk_tolerance', v || null)}>
+                  <SelectTrigger id="risk-tolerance">
+                    <SelectValue placeholder="Select risk tolerance" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low - Conservative approach</SelectItem>
+                    <SelectItem value="medium">Medium - Balanced approach</SelectItem>
+                    <SelectItem value="high">High - Aggressive optimization</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="goals">Health Goals</Label>
-                <Textarea
-                  id="goals"
-                  value={profile.goals || ''}
-                  onChange={(e) => handleProfileChange('goals', e.target.value || null)}
-                  placeholder="Describe your health and fitness goals..."
-                  rows={3}
-                />
+                <Label htmlFor="goals">Primary Goal</Label>
+                <Select
+                  value={profile.goals && GOALS_OPTIONS.includes(profile.goals) ? profile.goals : 'Other'}
+                  onValueChange={(v) => handleProfileChange('goals', v === 'Other' ? '' : v)}
+                >
+                  <SelectTrigger id="goals">
+                    <SelectValue placeholder="Select primary goal" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GOALS_OPTIONS.map((opt) => (
+                      <SelectItem key={opt} value={opt}>
+                        {opt}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {(!profile.goals || !GOALS_OPTIONS.includes(profile.goals)) && (
+                  <Textarea
+                    placeholder="Describe your goals (when Other selected)"
+                    value={profile.goals || ''}
+                    onChange={(e) => handleProfileChange('goals', e.target.value || null)}
+                    rows={2}
+                    className="mt-2"
+                  />
+                )}
               </div>
 
               <Button onClick={handleSaveProfile} disabled={saving} className="w-full">

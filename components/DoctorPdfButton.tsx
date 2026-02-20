@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { FileText, Download, Crown, ArrowRight } from 'lucide-react'
 import { useState } from 'react'
+import { useSubscriptionTier } from '@/hooks/useSubscriptionTier'
 
 interface DoctorPdfButtonProps {
   patientData: {
@@ -19,6 +20,7 @@ interface DoctorPdfButtonProps {
 }
 
 export function DoctorPdfButton({ patientData, analysisType, onGenerate, buttonLabel }: DoctorPdfButtonProps) {
+  const { isElite } = useSubscriptionTier()
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -97,24 +99,26 @@ export function DoctorPdfButton({ patientData, analysisType, onGenerate, buttonL
         <p className="text-sm text-destructive text-center">{error}</p>
       )}
 
-      {/* Elite-only upsell */}
-      <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-center">
-        <div className="flex items-center justify-center gap-2 mb-2">
-          <Crown className="h-5 w-5 text-amber-600" />
-          <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-            Elite Feature
-          </Badge>
+      {/* Elite-only upsell - only show when user is not Elite */}
+      {!isElite && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-center">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <Crown className="h-5 w-5 text-amber-600" />
+            <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+              Elite Feature
+            </Badge>
+          </div>
+          <p className="text-sm text-amber-800 dark:text-amber-200 mb-3">
+            Unlock TRT optimization protocols & specialist referral packages
+          </p>
+          <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white" asChild>
+            <Link href="/subscription">
+              Upgrade to Elite
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Link>
+          </Button>
         </div>
-        <p className="text-sm text-amber-800 dark:text-amber-200 mb-3">
-          Unlock TRT optimization protocols & specialist referral packages
-        </p>
-        <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white" asChild>
-          <Link href="/subscription">
-            Upgrade to Elite
-            <ArrowRight className="h-4 w-4 ml-2" />
-          </Link>
-        </Button>
-      </div>
+      )}
     </div>
   )
 }

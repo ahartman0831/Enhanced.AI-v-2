@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import { TierGate } from '@/components/TierGate'
 import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -159,6 +160,7 @@ export default function BloodworkHistoryPage() {
 
   if (loading) {
     return (
+      <TierGate>
       <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-8 max-w-6xl">
           <div className="flex items-center justify-center py-24">
@@ -166,11 +168,13 @@ export default function BloodworkHistoryPage() {
           </div>
         </div>
       </div>
+      </TierGate>
     )
   }
 
   if (error) {
     return (
+      <TierGate>
       <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-8 max-w-6xl">
           <Alert variant="destructive">
@@ -179,11 +183,13 @@ export default function BloodworkHistoryPage() {
           </Alert>
         </div>
       </div>
+      </TierGate>
     )
   }
 
   if (!data || (data.reports.length === 0 && data.series.length === 0)) {
     return (
+      <TierGate>
       <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-8 max-w-6xl">
           <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
@@ -210,10 +216,12 @@ export default function BloodworkHistoryPage() {
           </Card>
         </div>
       </div>
+      </TierGate>
     )
   }
 
   return (
+    <TierGate>
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-6xl space-y-8">
         <div>
@@ -520,5 +528,6 @@ export default function BloodworkHistoryPage() {
         </div>
       </div>
     </div>
+    </TierGate>
   )
 }

@@ -23,16 +23,21 @@ import {
   Shield,
   Beaker,
   BarChart3,
-  CreditCard
+  CreditCard,
+  Lock,
+  Sparkles
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useSupabase } from '@/hooks/useSupabase'
+import { useSubscriptionTier } from '@/hooks/useSubscriptionTier'
+import { getRequiredTier } from '@/lib/feature-gates'
 import { Logo } from '@/components/Logo'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Compounds', href: '/compounds', icon: Pill },
   { name: 'Stack Explorer', href: '/stack-explorer', icon: Search },
+  /* STACK_EDUCATION_FEATURE START */ { name: 'Stack Education', href: '/stack-education', icon: Beaker }, /* STACK_EDUCATION_FEATURE END */
   { name: 'Side Effects', href: '/side-effects', icon: AlertTriangle },
   { name: 'Order Blood Test', href: '/blood-panel-order', icon: Beaker },
   { name: 'Bloodwork Parser', href: '/bloodwork-parser', icon: FileText },
@@ -41,6 +46,7 @@ const navigation = [
   { name: 'Results Forecaster', href: '/results-forecaster', icon: TrendingUp },
   { name: 'Recovery Timeline', href: '/recovery-timeline', icon: Clock },
   { name: 'Counterfeit Checker', href: '/counterfeit-checker', icon: Shield },
+  { name: 'Supplement Analyzer', href: '/supplement-analyzer', icon: Sparkles },
   { name: 'Telehealth Referral', href: '/telehealth-referral', icon: Stethoscope },
   { name: 'Profile', href: '/profile', icon: User },
   { name: 'Subscription', href: '/subscription', icon: CreditCard },
@@ -50,6 +56,7 @@ export function Sidebar() {
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
   const { supabase } = useSupabase()
+  const { isPaid, isElite } = useSubscriptionTier()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -72,17 +79,27 @@ export function Sidebar() {
       <nav className="flex-1 space-y-1 p-4">
         {navigation.map((item) => {
           const isActive = pathname === item.href
+          const required = getRequiredTier(item.href)
+          const hasAccess =
+            required === 'free' ||
+            (required === 'pro' && (isPaid || isElite)) ||
+            (required === 'elite' && isElite)
+          const isGated = !hasAccess
           return (
             <Link key={item.name} href={item.href}>
               <Button
                 variant={isActive ? "secondary" : "ghost"}
                 className={cn(
                   "w-full justify-start",
-                  isActive && "bg-secondary"
+                  isActive && "bg-secondary",
+                  isGated && "opacity-80"
                 )}
               >
-                <item.icon className="mr-2 h-4 w-4" />
-                {item.name}
+                <item.icon className="mr-2 h-4 w-4 shrink-0" />
+                <span className="flex-1 truncate text-left">{item.name}</span>
+                {isGated && (
+                  <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" title={`${required === 'elite' ? 'Elite' : 'Pro'} feature`} />
+                )}
               </Button>
             </Link>
           )

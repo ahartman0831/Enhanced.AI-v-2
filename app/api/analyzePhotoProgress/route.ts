@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { getSubscriptionTier, requireTier } from '@/lib/subscription-gate'
 import { callGrok } from '@/lib/grok'
 
 export async function POST(request: NextRequest) {
@@ -13,6 +14,16 @@ export async function POST(request: NextRequest) {
         { error: 'Authentication required' },
         { status: 401 }
       )
+    }
+
+    const { data: profile } = await supabase.from('profiles').select('dev_mode_enabled').eq('id', user.id).single()
+    const devModeEnabled = profile?.dev_mode_enabled ?? false
+    if (!devModeEnabled) {
+      const tier = await getSubscriptionTier(supabase, user.id)
+      const gate = requireTier(tier, 'pro')
+      if (!gate.allowed) {
+        return gate.response
+      }
     }
 
     // Parse request body
@@ -62,9 +73,10 @@ Remember: This is educational analysis only, not medical advice.`
     })
 
     if (!grokResult.success) {
+      const status = grokResult._complianceBlocked ? 422 : 500
       return NextResponse.json(
         { error: grokResult.error || 'Failed to analyze photos' },
-        { status: 500 }
+        { status }
       )
     }
 

@@ -1,0 +1,54 @@
+{
+  "report_name": "Lean Bulk - Advanced Approach",
+  "disclaimer": "Educational information only. This analysis discusses approaches frequently mentioned in health optimization and bodybuilding communities. It is not medical advice, does not recommend any protocol, and should not replace consultation with a qualified physician. Individual responses vary significantly. All compounds referenced are drawn exclusively from the application's vetted compound database.",
+  "common_approaches_discussed": [
+    {
+      "base": "Moderate Anabolic Foundation",
+      "additions": ["MK-677", "Masteron"],
+      "benefits": "Boldenone commonly discussed for steady appetite and lean gains; MK-677 frequently mentioned for IGF-1 elevation and appetite support; Masteron anecdotally reported for hardness and estrogen control without water retention.",
+      "risks": "Frequently discussed risk patterns include hematocrit elevation with Boldenone; prolactin and water retention with MK-677; DHT-related hair loss and prostate sensitivity with Masteron. Heavy monitoring required — bloodwork every 4–6 weeks; physician oversight essential.",
+      "affected_systems": ["Endocrine", "Cardiovascular", "Hepatic", "Metabolic"],
+      "monitoring": ["Estradiol (E2) — aromatization patterns", "Prolactin — MK-677/GH secretagogue", "ALT/AST — hepatic load", "Hematocrit — Boldenone RBC elevation", "DHT/Cholesterol — Masteron"],
+      "nutrition_impact": "Frequently discussed as supporting aggressive surplus with improved protein utilization; forums often mention appetite stimulation from Boldenone enabling sustained surplus intake; partitioning strategies commonly discussed for lean mass gains."
+    },
+    {
+      "base": "Mass-Gain Approach",
+      "additions": ["Dianabol", "Deca-Durabolin", "Arimidex"],
+      "benefits": "Dianabol commonly discussed for rapid mass gains; Deca-Durabolin anecdotally reported for joint support and steady gains; Arimidex frequently mentioned for estrogen control when stacking aromatizing compounds.",
+      "risks": "Frequently discussed risk patterns: Dianabol + Deca = compounded liver and estrogen load; prolactin elevation with 19-n compounds; lipid disruption. Heavy monitoring — liver enzymes, estradiol, prolactin, lipids. Physician consultation essential.",
+      "affected_systems": ["Endocrine", "Hepatic", "Cardiovascular", "Reproductive"],
+      "monitoring": ["Liver Enzymes — Dianabol hepatotoxicity", "Estradiol — aromatization", "Prolactin — 19-nor effects", "HDL/LDL — lipid disruption"],
+      "nutrition_impact": "Patterns observed in user bloodwork discussions: surplus nutrition commonly discussed with liver support; protein timing for anabolic windows; electrolyte balance during water retention phases."
+    }
+  ],
+  "commonly_discussed_supports": [
+    { "name": "Fish Oil", "common_purpose": "cardiovascular and lipid support", "affected_system": "Cardiovascular", "amazon_affiliate_link": "https://amazon.com/dp/B001E5E2V8?tag=enhancedai-20" },
+    { "name": "NAC", "common_purpose": "hepatic and antioxidant support", "affected_system": "Liver", "amazon_affiliate_link": "https://amazon.com/dp/B001E5E2V8?tag=enhancedai-20" },
+    { "name": "TUDCA", "common_purpose": "hepatic support", "affected_system": "Liver", "amazon_affiliate_link": "https://amazon.com/dp/B001E5E2V8?tag=enhancedai-20" },
+    { "name": "CoQ10", "common_purpose": "cardiovascular and mitochondrial support", "affected_system": "Cardiovascular", "amazon_affiliate_link": "https://amazon.com/dp/B001E5E2V8?tag=enhancedai-20" }
+  ],
+  "nutrition_impact": {
+    "summary": "For lean bulk with advanced/high-risk profiles, forums frequently discuss aggressive surplus nutrition with partitioning focus — glycogen replenishment, protein timing around training, and appetite management. Communities often emphasize monitoring body composition to keep gains lean; surplus-fueled pump without excessive water retention is a commonly discussed pattern.",
+    "key_discussions": ["Appetite stimulation for surplus", "Partitioning strategies for lean mass", "Protein timing for anabolic windows"],
+    "proteinConsiderations": "Goal-tailored: higher protein commonly discussed for nitrogen retention and muscle protein synthesis during surplus.",
+    "calorieManagement": "Surplus commonly discussed; forums often mention appetite support from certain compounds enabling sustained intake.",
+    "micronutrientFocus": "Zinc, magnesium, vitamin D frequently mentioned for hormonal support; electrolytes for hydration.",
+    "timingStrategies": "Common timing approaches: peri-workout nutrition; protein distribution across the day.",
+    "supplementSynergy": "How nutrients work together for lean bulk: surplus + partitioning + monitoring."
+  },
+  "commonly_discussed_combo_risks": [
+    "19-nor + high aromatizers (Dianabol, Deca) frequently mentioned for prolactin/estrogen synergy — requires monitoring",
+    "Boldenone + Masteron: DHT stacking commonly discussed for hair loss and prostate sensitivity",
+    "MK-677 + aromatizing compounds: water retention and prolactin patterns often discussed"
+  ],
+  "bloodwork_markers_to_monitor": [
+    { "marker": "HDL/LDL", "why": "Commonly discussed for lipid disruption with oral compounds" },
+    { "marker": "ALT/AST", "why": "Liver enzymes often monitored when hepatotoxic compounds discussed" },
+    { "marker": "Estradiol", "why": "Aromatization patterns with aromatizing compounds" },
+    { "marker": "Prolactin", "why": "19-nor and MK-677 patterns" },
+    { "marker": "Hematocrit", "why": "Boldenone RBC elevation" },
+    { "marker": "Testosterone/LH/FSH", "why": "Endocrine suppression patterns" }
+  ],
+  "safety_notes": "Strong bloodwork (4–8 weeks), physician consult, variability. Advanced/high-risk profiles require amplified monitoring. Individual responses vary significantly.",
+  "next_step": "Discuss any health optimization strategy with a qualified physician."
+}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -14,7 +15,8 @@ import {
   AlertTriangle,
   ArrowLeft,
   CreditCard,
-  Calendar
+  Loader2,
+  ExternalLink
 } from 'lucide-react'
 
 type SubscriptionTier = 'free' | 'paid' | 'elite'
@@ -25,9 +27,9 @@ const TIER_FEATURES = {
     price: 0,
     description: 'Perfect for getting started',
     features: [
-      'Basic compound database',
-      'Educational analysis',
-      'Progress tracking',
+      'Compounds database',
+      'Order blood test',
+      'Profile & subscription',
       'Community discussions'
     ],
     icon: Star,
@@ -35,44 +37,50 @@ const TIER_FEATURES = {
   },
   paid: {
     name: 'Pro',
-    price: 19,
-    description: 'Advanced analysis tools',
+    price: 14.99,
+    description: 'Exploration, modeling & educational tools',
     features: [
-      'Everything in Free, plus:',
-      'Stack Explorer',
-      'Bloodwork analysis',
-      'Photo progress tracking',
-      'Side effects monitoring',
-      'Advanced reporting',
-      'Priority support'
+      '🧪 Exploration — Stack Explorer, Side Effects, Counterfeit Checker',
+      '📊 Modeling — Progress Photos, Results Forecaster, Supplement Analyzer',
+      '⚙️ Educational Tools — Advanced analysis and reporting'
     ],
     icon: Award,
     className: 'border-cyan-500/50 shadow-lg shadow-cyan-500/10'
   },
   elite: {
     name: 'Elite',
-    price: 39,
-    description: 'Professional-grade health optimization',
+    price: 29.99,
+    description: 'Biomarker intelligence & doctor-ready exports',
     features: [
-      'Everything in Pro, plus:',
-      'Doctor consultation packages',
-      'Lab testing partnerships',
-      'TRT optimization protocols',
-      'Specialist referrals',
-      'Custom treatment plans',
-      '24/7 medical support'
+      '🔬 Biomarker Intelligence — Bloodwork Parser, lab analysis',
+      '📈 Longitudinal Tracking — Bloodwork History, trends over time',
+      '🧠 Personalized Recovery Modeling — Recovery Timeline, PCT considerations',
+      '📄 Doctor-Ready Exports — Telehealth Referral packages, PDF exports'
     ],
     icon: Crown,
-    className: 'bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 border-amber-200 dark:border-amber-800'
+    className: 'bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 border-amber-200 dark:border-amber-800 shadow-lg shadow-amber-500/10'
   }
 } as const
 
 export default function SubscriptionPage() {
+  const searchParams = useSearchParams()
   const [tier, setTier] = useState<SubscriptionTier | null>(null)
   const [tierLoading, setTierLoading] = useState(true)
-  const [changing, setChanging] = useState<string | null>(null)
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
+  const [portalLoading, setPortalLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (searchParams.get('success') === 'true') {
+      setSuccess('Payment successful! Your subscription is now active.')
+      window.history.replaceState({}, '', '/subscription')
+    }
+    if (searchParams.get('canceled') === 'true') {
+      setError('Checkout was canceled.')
+      window.history.replaceState({}, '', '/subscription')
+    }
+  }, [searchParams])
 
   useEffect(() => {
     let cancelled = false
@@ -99,24 +107,39 @@ export default function SubscriptionPage() {
   const isPaid = effectiveTier === 'paid' || effectiveTier === 'elite'
   const isElite = effectiveTier === 'elite'
 
-  const handleChangeSubscription = async (action: 'upgrade' | 'downgrade' | 'cancel', targetTier?: string) => {
-    setChanging(action)
+  const handleStripeCheckout = async (targetTier: 'pro' | 'elite') => {
+    setCheckoutLoading(targetTier)
     setError(null)
-    setSuccess(null)
     try {
-      const res = await fetch('/api/subscription', {
+      const res = await fetch('/api/stripe/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, targetTier })
+        body: JSON.stringify({ tier: targetTier, period: 'month' }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to update subscription')
-      setSuccess(data.message || 'Subscription updated. Changes take effect at your next billing date.')
-      window.location.reload() // Refresh to reflect new tier
+      if (!res.ok) throw new Error(data.error || 'Failed to start checkout')
+      if (data.url) window.location.href = data.url
+      else throw new Error('No checkout URL')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
-      setChanging(null)
+      setCheckoutLoading(null)
+    }
+  }
+
+  const handleManageSubscription = async () => {
+    setPortalLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/stripe/customer-portal', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to open portal')
+      if (data.url) window.location.href = data.url
+      else throw new Error('No portal URL')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setPortalLoading(false)
     }
   }
 
@@ -181,7 +204,13 @@ export default function SubscriptionPage() {
               >
                 {isCurrentTier && (
                   <div className="absolute -top-2.5 right-4">
-                    <Badge className="bg-cyan-600 text-white dark:bg-cyan-500 dark:text-foreground">
+                    <Badge
+                      className={
+                        tierKey === 'elite'
+                          ? 'bg-amber-600 text-white dark:bg-amber-500 dark:text-foreground'
+                          : 'bg-cyan-600 text-white dark:bg-cyan-500 dark:text-foreground'
+                      }
+                    >
                       Current Plan
                     </Badge>
                   </div>
@@ -197,45 +226,45 @@ export default function SubscriptionPage() {
                   </CardTitle>
                   <CardDescription>{config.description}</CardDescription>
                   <div className="text-3xl font-bold">
-                    ${config.price}
+                    ${typeof config.price === 'number' && config.price % 1 !== 0 ? config.price.toFixed(2) : config.price}
                     <span className="text-base font-normal text-muted-foreground">/month</span>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <ul className="space-y-2 text-sm">
+                  <ul className="space-y-3 text-sm">
                     {config.features.map((f, i) => (
                       <li key={i} className="flex items-start gap-2">
-                        <CheckCircle className="h-4 w-4 text-cyan-500 shrink-0 mt-0.5" />
-                        <span className={f.endsWith(':') ? 'font-medium' : ''}>{f}</span>
+                        <CheckCircle
+                          className={`h-4 w-4 shrink-0 mt-0.5 ${
+                            tierKey === 'elite' ? 'text-amber-600' : tierKey === 'paid' ? 'text-cyan-500' : 'text-muted-foreground'
+                          }`}
+                        />
+                        <span>{f}</span>
                       </li>
                     ))}
                   </ul>
 
                   {!tierLoading && (
-                    <div className="pt-2">
+                    <div className="pt-2 space-y-2">
                       {isCurrentTier && (effectiveTier === 'paid' || effectiveTier === 'elite') ? (
-                        <div className="space-y-2">
+                        <>
                           <Button
                             variant="outline"
                             className="w-full"
-                            disabled={!!changing}
-                            onClick={() =>
-                              handleChangeSubscription(effectiveTier === 'elite' ? 'downgrade' : 'cancel', 'free')
-                            }
+                            disabled={portalLoading}
+                            onClick={handleManageSubscription}
                           >
-                            {changing ? (
-                              <span className="animate-pulse">Processing...</span>
+                            {portalLoading ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                             ) : (
-                              <>
-                                <Calendar className="h-4 w-4 mr-2" />
-                                Cancel / Downgrade at period end
-                              </>
+                              <ExternalLink className="h-4 w-4 mr-2" />
                             )}
+                            Manage subscription
                           </Button>
                           <p className="text-xs text-muted-foreground text-center">
-                            Access until next billing date
+                            Cancel, update payment, or change plan in Stripe
                           </p>
-                        </div>
+                        </>
                       ) : isUpgrade ? (
                         <Button
                           className={`w-full ${
@@ -243,46 +272,28 @@ export default function SubscriptionPage() {
                               ? 'bg-amber-600 hover:bg-amber-700 text-white'
                               : 'bg-cyan-600 hover:bg-cyan-700 text-white'
                           }`}
-                          disabled={!!changing}
-                          onClick={() => handleChangeSubscription('upgrade', tierKey)}
+                          disabled={!!checkoutLoading}
+                          onClick={() => handleStripeCheckout(tierKey as 'pro' | 'elite')}
                         >
-                          {changing ? (
-                            <span className="animate-pulse">Processing...</span>
+                          {checkoutLoading === tierKey ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
                             `Upgrade to ${config.name}`
                           )}
                         </Button>
-                      ) : isDowngradeToPro ? (
+                      ) : isDowngradeToPro || isDowngradeToFree ? (
                         <Button
                           variant="outline"
                           className="w-full"
-                          disabled={!!changing}
-                          onClick={() => handleChangeSubscription('downgrade', 'paid')}
+                          disabled={portalLoading}
+                          onClick={handleManageSubscription}
                         >
-                          {changing ? (
-                            <span className="animate-pulse">Processing...</span>
+                          {portalLoading ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                           ) : (
-                            <>
-                              <Calendar className="h-4 w-4 mr-2" />
-                              Downgrade to Pro at period end
-                            </>
+                            <ExternalLink className="h-4 w-4 mr-2" />
                           )}
-                        </Button>
-                      ) : isDowngradeToFree ? (
-                        <Button
-                          variant="outline"
-                          className="w-full"
-                          disabled={!!changing}
-                          onClick={() => handleChangeSubscription('downgrade', 'free')}
-                        >
-                          {changing ? (
-                            <span className="animate-pulse">Processing...</span>
-                          ) : (
-                            <>
-                              <Calendar className="h-4 w-4 mr-2" />
-                              Downgrade at period end
-                            </>
-                          )}
+                          Manage subscription to downgrade
                         </Button>
                       ) : (
                         <Button variant="outline" className="w-full" disabled>

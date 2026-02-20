@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { TierBadge } from '@/components/TierBadge'
 import { useUnsavedAnalysis } from '@/contexts/UnsavedAnalysisContext'
 
-const PROTECTED_ROUTES = ['/dashboard', '/profile', '/subscription', '/stack-explorer', '/side-effects', '/compounds', '/onboarding', '/bloodwork-parser', '/bloodwork-history', '/progress-photos', '/results-forecaster', '/recovery-timeline', '/counterfeit-checker', '/telehealth-referral', '/blood-panel-order']
+const PROTECTED_ROUTES = ['/dashboard', '/profile', '/subscription', '/stack-explorer', '/side-effects', '/compounds', '/onboarding', '/bloodwork-parser', '/bloodwork-history', '/progress-photos', '/results-forecaster', '/recovery-timeline', '/counterfeit-checker', '/supplement-analyzer', '/telehealth-referral', '/blood-panel-order']
 
 const ORDER_BLOOD_TEST_ROUTES = ['/stack-explorer', '/side-effects', '/recovery-timeline', '/telehealth-referral', '/bloodwork-parser']
 
@@ -23,6 +23,9 @@ export function BackNav() {
   const handleBackClick = () => {
     if (isSideEffectsWithUnsaved) {
       unsaved?.triggerNavigateAwayPrompt()
+    } else if (pathname?.startsWith('/recovery-timeline') && (window as unknown as { __recoveryViewingResults?: boolean }).__recoveryViewingResults) {
+      // When viewing a saved analysis, Back returns to form view (same page)
+      window.dispatchEvent(new CustomEvent('recovery-timeline:back-to-form'))
     } else {
       router.back()
     }

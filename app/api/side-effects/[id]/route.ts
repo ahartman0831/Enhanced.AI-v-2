@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { getSubscriptionTier, requireTier } from '@/lib/subscription-gate'
 
 export async function DELETE(
   _request: NextRequest,
@@ -15,6 +16,12 @@ export async function DELETE(
         { error: 'Authentication required' },
         { status: 401 }
       )
+    }
+
+    const tier = await getSubscriptionTier(supabase, user.id)
+    const gate = requireTier(tier, 'pro')
+    if (!gate.allowed) {
+      return gate.response
     }
 
     const { error } = await supabase

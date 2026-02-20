@@ -67,7 +67,8 @@ export async function GET(request: NextRequest) {
     })
 
     if (!grokResult.success) {
-      return NextResponse.json({ error: 'Failed to generate summary' }, { status: 500 })
+      const status = grokResult._complianceBlocked ? 422 : 500
+      return NextResponse.json({ error: grokResult.error || 'Failed to generate summary' }, { status })
     }
 
     return NextResponse.json({

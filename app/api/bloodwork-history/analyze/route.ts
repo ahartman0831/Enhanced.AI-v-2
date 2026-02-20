@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { getSubscriptionTier, requireTier } from '@/lib/subscription-gate'
 import { callGrok } from '@/lib/grok'
 import {
   extractMarkersFromReport,
@@ -19,6 +20,12 @@ export async function POST(request: NextRequest) {
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const tier = await getSubscriptionTier(supabase, user.id)
+    const gate = requireTier(tier, 'elite')
+    if (!gate.allowed) {
+      return gate.response
     }
 
     const { data: reports, error: fetchError } = await supabase
@@ -75,9 +82,10 @@ Provide a JSON object with trendSummary, patternNotes (array), and markerInsight
     })
 
     if (!grokResult.success) {
+      const status = grokResult._complianceBlocked ? 422 : 500
       return NextResponse.json(
         { error: grokResult.error || 'AI analysis failed' },
-        { status: 500 }
+        { status }
       )
     }
 

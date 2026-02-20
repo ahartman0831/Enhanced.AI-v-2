@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { CommunityInsightsCard } from '@/components/CommunityInsightsCard'
 import { CommunityRiskStoriesCard } from '@/components/CommunityRiskStoriesCard'
 import { BloodPanelUpsell } from '@/components/BloodPanelUpsell'
@@ -60,6 +61,37 @@ export default function DashboardPage() {
           <BloodPanelUpsell className="md:col-span-2" />
           <CommunityRiskStoriesCard className="md:col-span-2" />
         </div>
+
+        {/* Admin / dev section - only visible when dev_mode_enabled */}
+        {user?.dev_mode_enabled && (
+          <div className="mt-8 pt-6 border-t space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Admin</p>
+            <div className="flex flex-wrap gap-4">
+              <Link
+                href="/admin/dev-toggle"
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
+                Dev Mode Toggle
+              </Link>
+              <Link
+                href="/admin/compliance"
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
+                Compliance Flags
+              </Link>
+            </div>
+          </div>
+        )}
+        {!user?.dev_mode_enabled && (
+          <div className="mt-8 pt-6 border-t">
+            <Link
+              href="/admin/dev-toggle"
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              Dev Mode Toggle
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   )

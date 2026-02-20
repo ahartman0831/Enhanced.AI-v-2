@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { TierGate } from '@/components/TierGate'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -238,6 +239,7 @@ export default function CounterfeitCheckerPage() {
   }
 
   return (
+    <TierGate>
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         {/* Header */}
@@ -690,5 +692,6 @@ export default function CounterfeitCheckerPage() {
         )}
       </div>
     </div>
+    </TierGate>
   )
 }

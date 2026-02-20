@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { getSubscriptionTier, requireTier } from '@/lib/subscription-gate'
 import {
   extractMarkersFromReport,
   aggregateMarkerSeries,
@@ -19,6 +20,12 @@ export async function GET() {
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const tier = await getSubscriptionTier(supabase, user.id)
+    const gate = requireTier(tier, 'elite')
+    if (!gate.allowed) {
+      return gate.response
     }
 
     const { data: reports, error: fetchError } = await supabase

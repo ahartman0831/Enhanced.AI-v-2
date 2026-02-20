@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { getSubscriptionTier, requireTier } from '@/lib/subscription-gate'
 import { pdf } from 'pdf-to-img'
 
 export async function POST(request: NextRequest) {
@@ -14,6 +15,12 @@ export async function POST(request: NextRequest) {
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const tier = await getSubscriptionTier(supabase, user.id)
+    const gate = requireTier(tier, 'elite')
+    if (!gate.allowed) {
+      return gate.response
     }
 
     const body = await request.json()

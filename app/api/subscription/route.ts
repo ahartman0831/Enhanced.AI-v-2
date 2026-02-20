@@ -24,7 +24,7 @@ export async function GET() {
 
     const tier = (profile?.subscription_tier as string) || 'free'
     const normalized = tier.toLowerCase().trim()
-    const effectiveTier = (normalized === 'elite' || normalized === 'paid') ? normalized : 'free'
+    const effectiveTier = (normalized === 'elite' || normalized === 'paid' || normalized === 'pro') ? (normalized === 'pro' ? 'paid' : normalized) : 'free'
 
     return NextResponse.json({
       tier: effectiveTier === 'elite' ? 'elite' : effectiveTier === 'paid' ? 'paid' : 'free',
@@ -37,13 +37,7 @@ export async function GET() {
   }
 }
 
-/** Get last day of current month (placeholder for billing cycle - replace with real billing provider) */
-function getLastDayOfMonth(): string {
-  const now = new Date()
-  const last = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-  return last.toISOString().split('T')[0]
-}
-
+/** POST: Redirect to Stripe for upgrades/cancel. Webhooks are the ONLY thing that updates subscription_tier. */
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createSupabaseServerClient()
@@ -53,70 +47,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await request.json()
-    const { action, targetTier } = body as { action?: string; targetTier?: string }
+    const body = await request.json().catch(() => ({}))
+    const { action } = body as { action?: string }
 
-    if (!action || !['upgrade', 'downgrade', 'cancel'].includes(action)) {
-      return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
-    }
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-
-    const currentTier = (profile?.subscription_tier as string) || 'free'
-
-    if (action === 'upgrade') {
-      if (!targetTier || !['paid', 'elite'].includes(targetTier)) {
-        return NextResponse.json({ error: 'Invalid target tier for upgrade' }, { status: 400 })
-      }
-      // Upgrade takes effect immediately
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          subscription_tier: targetTier,
-          pending_subscription_tier: null,
-          subscription_end_at: null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id)
-
-      if (error) {
-        return NextResponse.json({ error: 'Failed to upgrade' }, { status: 500 })
-      }
+    if (action === 'upgrade' || action === 'downgrade' || action === 'cancel') {
       return NextResponse.json({
-        message: `Upgraded to ${targetTier === 'elite' ? 'Elite' : 'Pro'}. Your new plan is active now.`
-      })
+        error: 'Use Stripe for subscription changes. Visit /subscription and click "Manage subscription" or "Upgrade".',
+        useStripe: true,
+      }, { status: 400 })
     }
 
-    const isPaid = currentTier === 'paid' || currentTier === 'elite'
-    if (!isPaid && (action === 'downgrade' || action === 'cancel')) {
-      return NextResponse.json({ error: 'No active paid subscription to cancel or downgrade' }, { status: 400 })
-    }
-
-    // Cancel or downgrade: takes effect at next billing cycle
-    const endDate = getLastDayOfMonth()
-    const targetTierForDowngrade = action === 'cancel' ? 'free' : (targetTier === 'paid' ? 'paid' : 'free')
-    const targetLabel = targetTierForDowngrade === 'paid' ? 'Pro' : 'Free'
-
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        pending_subscription_tier: targetTierForDowngrade,
-        subscription_end_at: endDate,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', user.id)
-
-    if (error) {
-      return NextResponse.json({ error: 'Failed to update subscription' }, { status: 500 })
-    }
-
-    return NextResponse.json({
-      message: `Your subscription will change to ${targetLabel} at the end of your billing period (${endDate}). You keep your current access until then. No refund for the current period.`
-    })
+    return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
   } catch (error) {
     console.error('Subscription error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

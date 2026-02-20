@@ -9,7 +9,9 @@ import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { AlertTriangle, Loader2, User, Target } from 'lucide-react'
+import { Logo } from '@/components/Logo'
+import { ThemeProvider } from '@/components/ThemeProvider'
+import { AlertTriangle, Loader2, User } from 'lucide-react'
 
 const SEX_OPTIONS = [
   { value: 'male', label: 'Male' },
@@ -28,6 +30,7 @@ const PED_EXPERIENCE_OPTIONS = [
 const PRIMARY_GOAL_OPTIONS = [
   'Contest Prep',
   'Lean Bulk',
+  'Dirty Bulk',
   'Cut',
   'TRT Optimization',
   'Strength Gains',
@@ -37,6 +40,12 @@ const PRIMARY_GOAL_OPTIONS = [
   'Endurance Improvement',
   'Body Recomposition',
   'Other'
+]
+
+const RISK_TOLERANCE_OPTIONS = [
+  { value: 'low', label: 'Low (Prefer conservative approaches)' },
+  { value: 'medium', label: 'Medium (Balanced risk/benefit)' },
+  { value: 'high', label: 'High (Open to advanced strategies)' }
 ]
 
 function OnboardingContent() {
@@ -52,6 +61,7 @@ function OnboardingContent() {
   const [sex, setSex] = useState('')
   const [pedExperienceLevel, setPedExperienceLevel] = useState('')
   const [primaryGoal, setPrimaryGoal] = useState('')
+  const [riskTolerance, setRiskTolerance] = useState('')
   const [allowAnonymizedInsights, setAllowAnonymizedInsights] = useState(false)
 
   useEffect(() => {
@@ -70,6 +80,7 @@ function OnboardingContent() {
             setSex(data.sex ?? '')
             setPedExperienceLevel(data.ped_experience_level ?? '')
             setPrimaryGoal(data.primary_goal ?? '')
+            setRiskTolerance(data.risk_tolerance ?? '')
             router.replace(redirectTo)
             return
           }
@@ -86,7 +97,7 @@ function OnboardingContent() {
       }
     }
     check()
-  }, [router])
+  }, [router, redirectTo])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -109,6 +120,7 @@ function OnboardingContent() {
           sex,
           ped_experience_level: pedExperienceLevel,
           primary_goal: primaryGoal,
+          risk_tolerance: riskTolerance || undefined,
           allow_anonymized_insights: allowAnonymizedInsights
         })
       })
@@ -126,12 +138,14 @@ function OnboardingContent() {
     }
   }
 
-  const canSubmit = age && sex && pedExperienceLevel && primaryGoal
+  const canSubmit = age && sex && pedExperienceLevel && primaryGoal && riskTolerance
 
-  if (loading) {
+  if (loading || alreadyCompleted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background">
+        <Logo size="fill" showText={false} className="h-16 w-40 mb-6 [&_img]:object-contain" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500" />
+        {alreadyCompleted && <p className="mt-4 text-sm text-muted-foreground">Redirecting...</p>}
       </div>
     )
   }
@@ -139,6 +153,9 @@ function OnboardingContent() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container max-w-lg mx-auto px-4 py-12">
+        <div className="flex justify-center mb-8">
+          <Logo size="lg" showText={true} className="[&_span]:text-cyan-400" />
+        </div>
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Welcome to Enhanced.AI</h1>
           <p className="text-muted-foreground">
@@ -160,7 +177,7 @@ function OnboardingContent() {
         )}
 
         <form onSubmit={handleSubmit}>
-          <Card>
+          <Card className="border-cyan-500/10 bg-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <User className="h-5 w-5" />
@@ -233,6 +250,22 @@ function OnboardingContent() {
                 </Select>
               </div>
 
+              <div>
+                <Label>Risk Tolerance *</Label>
+                <Select value={riskTolerance} onValueChange={setRiskTolerance} required>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {RISK_TOLERANCE_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="flex items-start gap-3 rounded-lg border p-4">
                 <Checkbox
                   id="consent"
@@ -271,12 +304,15 @@ function OnboardingContent() {
 
 export default function OnboardingPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    }>
-      <OnboardingContent />
-    </Suspense>
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
+      <Suspense fallback={
+        <div className="min-h-screen flex flex-col items-center justify-center bg-background">
+          <Logo size="fill" showText={false} className="h-16 w-40 mb-6 [&_img]:object-contain" />
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500" />
+        </div>
+      }>
+        <OnboardingContent />
+      </Suspense>
+    </ThemeProvider>
   )
 }

@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { TierGate } from '@/components/TierGate'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { DoctorPdfButton } from '@/components/DoctorPdfButton'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, ComposedChart } from 'recharts'
+import { RecoveryConfirmModal, type RecoveryCycleContext } from '@/components/RecoveryConfirmModal'
+import { TELEHEALTH_PARTNERS } from '@/lib/affiliates'
 import {
   Clock,
   AlertTriangle,
@@ -15,15 +17,21 @@ import {
   Calendar,
   TrendingUp,
   Apple,
-  Activity,
   Shield,
-  Target
+  Target,
+  History,
+  Trash2,
+  ExternalLink,
+  Beaker,
+  Stethoscope,
 } from 'lucide-react'
 
 interface RecoveryTimelineResult {
+  plainEnglishSummary?: string
   recoveryTimeline: Array<{
     phase: string
     timeframe: string
+    plainEnglishExpectations?: string
     keyConsiderations: string[]
     typicalMarkers: string[]
     educationalNotes: string
@@ -55,30 +63,59 @@ interface RecoveryTimelineResult {
   }>
   monitoringProtocol: string[]
   educationalNotes: string
+  graphData?: {
+    phases?: Array<{ phase: string; startWeek: number; endWeek: number; color?: string }>
+    compoundCurves?: Array<{ compound: string; recoverySlope?: string; suppressionWeeks?: number; notes?: string }>
+    sideEffectOverlays?: Array<{ symptom: string; typicalDissipationWeek?: number; note?: string }>
+    harshRealityNote?: string
+  } | null
 }
 
 export default function RecoveryTimelinePage() {
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [result, setResult] = useState<RecoveryTimelineResult | null>(null)
+  const [cycleContext, setCycleContext] = useState<{ compounds: string[]; sideEffects: string[] } | null>(null)
+  const [bloodworkMarkers, setBloodworkMarkers] = useState<Record<string, { value: number | string; unit?: string }> | null>(null)
+  const [savedAnalyses, setSavedAnalyses] = useState<Array<{ id: string; stack_json: { recoveryAnalysis: RecoveryTimelineResult }; created_at: string }>>([])
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [hasData, setHasData] = useState(false)
 
-  // Check if user has protocols or bloodwork data
+  const fetchSavedAnalyses = async () => {
+    try {
+      const res = await fetch('/api/recovery-timeline/reports')
+      if (res.ok) {
+        const { reports } = await res.json()
+        setSavedAnalyses(reports ?? [])
+      }
+    } catch {
+      // Ignore
+    }
+  }
+
+  useEffect(() => {
+    fetchSavedAnalyses()
+  }, [])
+
+  useEffect(() => {
+    const win = window as unknown as { __recoveryViewingResults?: boolean }
+    win.__recoveryViewingResults = !!result
+    return () => { win.__recoveryViewingResults = false }
+  }, [result])
+
   useEffect(() => {
     const checkUserData = async () => {
       try {
-        // This would check if user has protocols/bloodwork
-        // For now, we'll assume they do
         setHasData(true)
       } catch (err) {
         console.error('Error checking user data:', err)
       }
     }
-
     checkUserData()
   }, [])
 
-  const handleAnalyze = async () => {
+  const runRecoveryAnalysis = async (body: { cycleContext?: RecoveryCycleContext; useLastKnown?: boolean }) => {
     setIsAnalyzing(true)
     setError(null)
 
@@ -87,7 +124,8 @@ export default function RecoveryTimelinePage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-        }
+        },
+        body: JSON.stringify(body),
       })
 
       const data = await response.json()
@@ -97,65 +135,80 @@ export default function RecoveryTimelinePage() {
       }
 
       setResult(data.data)
-
-    } catch (err: any) {
-      setError(err.message || 'An error occurred while generating recovery timeline')
+      if (data.cycleContext) {
+        setCycleContext({
+          compounds: data.cycleContext.compounds ?? [],
+          sideEffects: data.cycleContext.sideEffects ?? [],
+        })
+      } else {
+        setCycleContext(null)
+      }
+      setBloodworkMarkers(data.bloodworkMarkers ?? null)
+      fetchSavedAnalyses()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred while generating recovery timeline')
     } finally {
       setIsAnalyzing(false)
     }
   }
 
+  const handleSaveAndAnalyze = async (context: RecoveryCycleContext) => {
+    await runRecoveryAnalysis({ cycleContext: context })
+  }
+
+  const handleSkipAndUseLastKnown = async () => {
+    await runRecoveryAnalysis({ useLastKnown: true })
+  }
+
   const resetAnalysis = () => {
     setResult(null)
+    setCycleContext(null)
+    setBloodworkMarkers(null)
     setError(null)
   }
 
-  // Generate timeline data for chart visualization
-  const generateTimelineData = (timeline: RecoveryTimelineResult['recoveryTimeline']) => {
-    if (!timeline) return []
+  const resetRef = useRef(resetAnalysis)
+  resetRef.current = resetAnalysis
+  useEffect(() => {
+    const handler = () => resetRef.current()
+    window.addEventListener('recovery-timeline:back-to-form', handler)
+    return () => window.removeEventListener('recovery-timeline:back-to-form', handler)
+  }, [])
 
-    const data: Array<{ week: number; phase: string; recoveryProgress: number; hormoneRecovery: number; testosterone: number; cortisol: number }> = []
-    let weekCounter = 0
+  const handleLoadSaved = (report: { id: string; stack_json: { recoveryAnalysis: RecoveryTimelineResult }; created_at: string }) => {
+    const analysis = report.stack_json?.recoveryAnalysis
+    if (analysis) {
+      setResult(analysis)
+      setCycleContext(null)
+      setBloodworkMarkers(null)
+      setError(null)
+    }
+  }
 
-    timeline.forEach((phase, index) => {
-      // Parse timeframe to get approximate weeks
-      const timeMatch = phase.timeframe.match(/(\d+)-?(\d+)?\s*(week|month)/i)
-      let weeks = 4 // default
-
-      if (timeMatch) {
-        const num1 = parseInt(timeMatch[1])
-        const num2 = timeMatch[2] ? parseInt(timeMatch[2]) : num1
-        const unit = timeMatch[3].toLowerCase()
-
-        if (unit.includes('month')) {
-          weeks = Math.round(((num1 + num2) / 2) * 4.3) // rough month to weeks conversion
-        } else {
-          weeks = Math.round((num1 + num2) / 2)
-        }
+  const handleDeleteSaved = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!confirm('Delete this saved analysis? This cannot be undone.')) return
+    setDeletingId(id)
+    try {
+      const res = await fetch(`/api/recovery-timeline/reports/${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        setSavedAnalyses((prev) => prev.filter((r) => r.id !== id))
       }
+    } catch {
+      // Ignore
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
-      // Add data points for this phase
-      for (let i = 0; i < weeks; i++) {
-        const recoveryProgress = Math.min(100, ((weekCounter + i) / 16) * 100) // Assume 16 weeks total recovery
-        const hormoneRecovery = phase.phase.toLowerCase().includes('acute') ? 95 :
-                               phase.phase.toLowerCase().includes('extended') ? 85 : 75
-
-        data.push({
-          week: weekCounter + i,
-          phase: phase.phase,
-          recoveryProgress: Math.round(recoveryProgress),
-          hormoneRecovery: Math.round(hormoneRecovery - (i * 2)), // Gradual improvement
-          testosterone: phase.phase.toLowerCase().includes('acute') ? 85 :
-                       phase.phase.toLowerCase().includes('extended') ? 75 : 65,
-          cortisol: phase.phase.toLowerCase().includes('acute') ? 65 :
-                   phase.phase.toLowerCase().includes('extended') ? 55 : 45
-        })
-      }
-
-      weekCounter += weeks
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
     })
-
-    return data
   }
 
   const getSeverityColor = (severity: string) => {
@@ -168,8 +221,9 @@ export default function RecoveryTimelinePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+    <TierGate>
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Recovery Timeline</h1>
@@ -233,12 +287,13 @@ export default function RecoveryTimelinePage() {
               </Alert>
             )}
 
-            {/* Analyze Button */}
+            {/* Analyze Button - opens confirmation modal */}
             <div className="flex justify-center">
               <Button
-                onClick={handleAnalyze}
+                onClick={() => setConfirmModalOpen(true)}
                 disabled={isAnalyzing || !hasData}
                 size="lg"
+                className="bg-cyan-600 hover:bg-cyan-700"
               >
                 {isAnalyzing ? (
                   <>
@@ -250,6 +305,70 @@ export default function RecoveryTimelinePage() {
                 )}
               </Button>
             </div>
+
+            <RecoveryConfirmModal
+              open={confirmModalOpen}
+              onOpenChange={setConfirmModalOpen}
+              onSaveAndAnalyze={handleSaveAndAnalyze}
+              onSkipAndUseLastKnown={handleSkipAndUseLastKnown}
+              isAnalyzing={isAnalyzing}
+            />
+
+            {savedAnalyses.length > 0 && (
+              <div className="mt-8 pt-8 border-t">
+                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                  <History className="h-5 w-5" />
+                  Saved Recovery Analyses
+                </h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Your recovery timeline analyses are saved automatically. Click to view or delete.
+                </p>
+                <div className="space-y-3">
+                  {savedAnalyses.map((report) => (
+                    <Card
+                      key={report.id}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => handleLoadSaved(report)}
+                    >
+                      <CardHeader className="py-4">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                            <span className="font-medium">{formatDate(report.created_at)}</span>
+                            {report.stack_json?.recoveryAnalysis?.recoveryTimeline?.length > 0 && (
+                              <Badge variant="secondary" className="text-xs">
+                                {report.stack_json.recoveryAnalysis.recoveryTimeline.length} phases
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              onClick={(e) => handleDeleteSaved(report.id, e)}
+                              disabled={deletingId === report.id}
+                              aria-label="Delete analysis"
+                            >
+                              {deletingId === report.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                        {report.stack_json?.recoveryAnalysis?.plainEnglishSummary && (
+                          <CardDescription className="mt-2 line-clamp-2 text-left">
+                            {report.stack_json.recoveryAnalysis.plainEnglishSummary.slice(0, 150)}...
+                          </CardDescription>
+                        )}
+                      </CardHeader>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {!hasData && (
               <Alert>
@@ -264,6 +383,26 @@ export default function RecoveryTimelinePage() {
         ) : (
           /* Results Display */
           <div className="space-y-8">
+            {/* Plain English Summary - at the very top */}
+            {result.plainEnglishSummary && (
+              <Card className="border-cyan-500/20 bg-cyan-500/5 dark:bg-cyan-950/20">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Target className="h-5 w-5 text-cyan-500" />
+                    In Plain English: What You&apos;re About to Read
+                  </CardTitle>
+                  <CardDescription>
+                    A quick overview before you dive into the details
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="prose prose-sm dark:prose-invert max-w-none text-foreground whitespace-pre-line">
+                    {result.plainEnglishSummary}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Recovery Timeline */}
             {result.recoveryTimeline && result.recoveryTimeline.length > 0 && (
               <div>
@@ -281,6 +420,12 @@ export default function RecoveryTimelinePage() {
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
+                        {phase.plainEnglishExpectations && (
+                          <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 dark:bg-cyan-950/20 p-4">
+                            <h4 className="font-semibold mb-2 text-cyan-900 dark:text-cyan-100">What to Expect in Plain English</h4>
+                            <p className="text-sm text-foreground/90">{phase.plainEnglishExpectations}</p>
+                          </div>
+                        )}
                         {phase.keyConsiderations && phase.keyConsiderations.length > 0 && (
                           <div>
                             <h4 className="font-semibold mb-2">Key Educational Considerations</h4>
@@ -410,107 +555,76 @@ export default function RecoveryTimelinePage() {
               </div>
             )}
 
-            {/* Recovery Timeline Graph */}
-            {result.recoveryTimeline && result.recoveryTimeline.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5" />
-                    Recovery Progress Timeline
-                  </CardTitle>
-                  <CardDescription>
-                    Educational visualization of typical recovery progression (individual results may vary significantly)
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-80 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={generateTimelineData(result.recoveryTimeline)}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis
-                          dataKey="week"
-                          label={{ value: 'Weeks Post-Protocol', position: 'insideBottom', offset: -10 }}
-                        />
-                        <YAxis
-                          label={{ value: 'Recovery %', angle: -90, position: 'insideLeft' }}
-                        />
-                        <Tooltip
-                          formatter={(value: number, name: string) => [
-                            `${value}%`,
-                            name === 'recoveryProgress' ? 'Overall Recovery' :
-                            name === 'hormoneRecovery' ? 'Hormone Recovery' :
-                            name === 'testosterone' ? 'Testosterone' :
-                            name === 'cortisol' ? 'Cortisol' : name
-                          ]}
-                          labelFormatter={(week) => `Week ${week}`}
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="recoveryProgress"
-                          stackId="1"
-                          stroke="#3b82f6"
-                          fill="#3b82f6"
-                          fillOpacity={0.3}
-                          name="Overall Recovery"
-                        />
-                        <Area
-                          type="monotone"
-                          dataKey="hormoneRecovery"
-                          stackId="2"
-                          stroke="#10b981"
-                          fill="#10b981"
-                          fillOpacity={0.3}
-                          name="Hormone Recovery"
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="testosterone"
-                          stroke="#f59e0b"
-                          strokeWidth={2}
-                          dot={{ fill: '#f59e0b', strokeWidth: 2, r: 4 }}
-                          name="Testosterone"
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="cortisol"
-                          stroke="#ef4444"
-                          strokeWidth={2}
-                          dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
-                          name="Cortisol"
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 bg-blue-500 rounded"></div>
-                      <span>Overall Recovery Progress</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 bg-green-500 rounded"></div>
-                      <span>Hormone Recovery Trend</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 bg-yellow-500 rounded-full"></div>
-                      <span>Testosterone Levels</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 bg-red-500 rounded-full"></div>
-                      <span>Cortisol Levels</span>
-                    </div>
-                  </div>
-
-                  <Alert className="mt-4">
+            {/* Severe Cases Disclaimer + Bloodwork & Telehealth CTAs */}
+            <Card className="border-cyan-500/30 bg-cyan-500/5 dark:bg-cyan-950/20">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Stethoscope className="h-5 w-5 text-cyan-500" />
+                  Professional Support & Monitoring
+                </CardTitle>
+                <CardDescription>
+                  Severe cases often need pro intervention. Order bloodwork to track markers or connect with telehealth for physician-guided care.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {result.graphData?.harshRealityNote && (
+                  <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
                     <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription className="text-sm">
-                      <strong>Educational Visualization Only:</strong> This timeline represents generalized recovery patterns commonly discussed in health optimization communities.
-                      Individual recovery timelines vary dramatically based on protocol duration, intensity, genetics, and numerous other factors.
+                    <AlertDescription className="text-sm font-medium">
+                      {result.graphData.harshRealityNote}
                     </AlertDescription>
                   </Alert>
-                </CardContent>
-              </Card>
-            )}
+                )}
+                {!result.graphData?.harshRealityNote && (
+                  <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription className="text-sm font-medium">
+                      Severe cases often discuss HCG, Clomid, or TRT—pro intervention is key. Consult a physician for personalized care.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="rounded-xl border-2 border-cyan-500/30 bg-background/80 dark:bg-background/50 p-6 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Beaker className="h-6 w-6 text-cyan-500" />
+                      <h4 className="font-semibold text-base">Order Bloodwork</h4>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Monitor recovery with lab panels. Track testosterone, lipids, liver enzymes, and more.
+                    </p>
+                    <div className="flex flex-wrap gap-3">
+                      <Button size="lg" className="bg-cyan-600 hover:bg-cyan-700" asChild>
+                        <a href={TELEHEALTH_PARTNERS.quest} target="_blank" rel="noopener noreferrer">
+                          Quest Diagnostics
+                          <ExternalLink className="h-4 w-4 ml-2" />
+                        </a>
+                      </Button>
+                      <Button size="lg" variant="outline" className="border-cyan-500/50 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/10" asChild>
+                        <a href={TELEHEALTH_PARTNERS.letsGetChecked} target="_blank" rel="noopener noreferrer">
+                          LetsGetChecked
+                          <ExternalLink className="h-4 w-4 ml-2" />
+                        </a>
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="rounded-xl border-2 border-cyan-500/30 bg-background/80 dark:bg-background/50 p-6 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Stethoscope className="h-6 w-6 text-cyan-500" />
+                      <h4 className="font-semibold text-base">Telehealth Consult</h4>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Discuss recovery with a healthcare professional. Not medical advice—physician must verify.
+                    </p>
+                    <Button size="lg" className="bg-cyan-600 hover:bg-cyan-700 w-full md:w-auto" asChild>
+                      <a href={TELEHEALTH_PARTNERS.hims} target="_blank" rel="noopener noreferrer">
+                        Connect with Hims Telehealth
+                        <ExternalLink className="h-4 w-4 ml-2" />
+                      </a>
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Nutrition Impact Snapshot */}
             {result.nutritionImpact && (
@@ -665,7 +779,8 @@ export default function RecoveryTimelinePage() {
             </div>
           </div>
         )}
+        </div>
       </div>
-    </div>
+    </TierGate>
   )
 }

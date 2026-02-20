@@ -5,7 +5,7 @@ import { useSubscriptionTier } from '@/hooks/useSubscriptionTier'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
-const PROTECTED_ROUTES = ['/dashboard', '/profile', '/subscription', '/stack-explorer', '/side-effects', '/compounds', '/onboarding', '/bloodwork-parser', '/bloodwork-history', '/progress-photos', '/results-forecaster', '/recovery-timeline', '/counterfeit-checker', '/telehealth-referral']
+const PROTECTED_ROUTES = ['/dashboard', '/profile', '/subscription', '/stack-explorer', '/side-effects', '/compounds', '/onboarding', '/bloodwork-parser', '/bloodwork-history', '/progress-photos', '/results-forecaster', '/recovery-timeline', '/counterfeit-checker', '/supplement-analyzer', '/telehealth-referral']
 
 const TIER_CONFIG = {
   free: {

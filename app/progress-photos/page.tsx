@@ -3,6 +3,8 @@
 import React, { useState, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { useDevMode } from '@/hooks/useDevMode'
+import { TierGate } from '@/components/TierGate'
 import { PhotoUploader } from '@/components/PhotoUploader'
 import { PhotoMetaForm } from '@/components/PhotoMetaForm'
 import { AnalyzeButton } from '@/components/AnalyzeButton'
@@ -38,6 +40,7 @@ interface PhotoFile {
 }
 
 export default function ProgressPhotosPage() {
+  const { devModeEnabled, loading: devLoading } = useDevMode()
   const [photos, setPhotos] = useState<{
     front?: PhotoFile
     side?: PhotoFile
@@ -148,13 +151,22 @@ export default function ProgressPhotosPage() {
 
   const photoCount = [photos.front, photos.side, photos.back].filter(Boolean).length
 
+  // Dev mode: bypass tier gate for development. Otherwise tier gate applies.
+  if (devLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      </div>
+    )
+  }
+
   const photoTypes = [
     { key: 'front', label: 'Front View', description: 'Full body facing camera' },
     { key: 'side', label: 'Side View', description: 'Full body from the side' },
     { key: 'back', label: 'Back View', description: 'Full body from behind' }
   ] as const
 
-  return (
+  const content = (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Header */}
@@ -245,4 +257,7 @@ export default function ProgressPhotosPage() {
       </div>
     </div>
   )
+
+  // Dev mode bypasses tier gate; production uses tier gate (Pro required)
+  return devModeEnabled ? content : <TierGate>{content}</TierGate>
 }

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { callGrok } from '@/lib/grok'
+import { getSubscriptionTier, requireTier } from '@/lib/subscription-gate'
 import fs from 'fs'
 import path from 'path'
 
 export async function POST(request: NextRequest) {
   try {
-    // Authenticate user
     const supabase = await createSupabaseServerClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
@@ -15,6 +15,12 @@ export async function POST(request: NextRequest) {
         { error: 'Authentication required' },
         { status: 401 }
       )
+    }
+
+    const tier = await getSubscriptionTier(supabase, user.id)
+    const gate = requireTier(tier, 'pro')
+    if (!gate.allowed) {
+      return gate.response
     }
 
     // Parse request body
@@ -66,9 +72,10 @@ Please analyze the product images for authenticity indicators and provide the ed
     })
 
     if (!grokResult.success) {
+      const status = grokResult._complianceBlocked ? 422 : 500
       return NextResponse.json(
         { error: grokResult.error || 'Failed to analyze product' },
-        { status: 500 }
+        { status }
       )
     }
 

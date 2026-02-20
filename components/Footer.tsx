@@ -7,9 +7,8 @@ export function Footer() {
     <footer className="border-t bg-muted/30 mt-auto">
       <div className="container mx-auto px-4 py-6">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Logo size="sm" showText={false} />
-            <span>Enhanced AI v2 - Educational Health Analysis</span>
+          <div className="flex items-center h-24 w-48 sm:h-28 sm:w-56">
+            <Logo size="fill" showText={false} />
           </div>
 
           <div className="flex items-center gap-6 text-sm flex-wrap justify-center">

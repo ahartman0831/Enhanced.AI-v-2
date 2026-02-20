@@ -13,7 +13,7 @@ export async function GET() {
 
   try {
     const res = await fetch(
-      `${url}/rest/v1/compounds?select=id,name,category,common_uses,risk_score,affected_systems,key_monitoring_markers,nutrition_impact_summary&order=name`,
+      `${url}/rest/v1/compounds?select=id,name,category,common_uses,risk_score,affected_systems,key_monitoring_markers,nutrition_impact_summary,what_it_is,side_effects,sources,aromatization_score,aromatization_notes,aa_ratio,created_at,updated_at,breakdown_updated_at&order=name`,
       {
         headers: {
           apikey: key,

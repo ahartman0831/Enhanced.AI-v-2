@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { TierGate } from '@/components/TierGate'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -250,6 +251,7 @@ export default function BloodworkParserPage() {
   }
 
   return (
+    <TierGate>
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Header */}
@@ -872,5 +874,6 @@ FSH: 3.2 (1.4-18.1) mIU/mL`}
         )}
       </div>
     </div>
+    </TierGate>
   )
 }

@@ -131,6 +131,32 @@ export async function POST(request: NextRequest) {
     const marginX = 50
     const marginBottom = 100
 
+    const LOGO_URL = 'https://gzqoufimouwzhondmkid.supabase.co/storage/v1/object/public/email-assets/logo.png'
+    let contentStartY = height - 50
+
+    // Telehealth Referral: add large logo across the top
+    if (analysisType === 'telehealth-referral') {
+      try {
+        const logoRes = await fetch(LOGO_URL)
+        if (logoRes.ok) {
+          const logoBytes = new Uint8Array(await logoRes.arrayBuffer())
+          const logoImg = await pdfDoc.embedPng(logoBytes)
+          const logoDims = logoImg.scaleToFit(450, 120)
+          const logoX = (width - logoDims.width) / 2
+          const logoY = height - 40 - logoDims.height
+          page.drawImage(logoImg, {
+            x: logoX,
+            y: logoY,
+            width: logoDims.width,
+            height: logoDims.height,
+          })
+          contentStartY = logoY - 30
+        }
+      } catch {
+        // Logo fetch failed; continue without it
+      }
+    }
+
     // Add watermark background (use light gray; opacity may not be supported in all pdf-lib contexts)
     page.drawText('EDUCATIONAL PURPOSES ONLY', {
       x: width / 2 - 150,
@@ -148,10 +174,11 @@ export async function POST(request: NextRequest) {
       rotate: degrees(30)
     })
 
-    // Add header
-    page.drawText('Enhanced AI v2 - Educational Medical Summary', {
+    // Add header (below logo when present)
+    const headerY = contentStartY
+    page.drawText(analysisType === 'telehealth-referral' ? 'Telehealth Referral Package' : 'Enhanced AI v2 - Educational Medical Summary', {
       x: 50,
-      y: height - 50,
+      y: headerY,
       size: 16,
       color: rgb(0, 0, 0)
     })
@@ -159,35 +186,35 @@ export async function POST(request: NextRequest) {
     // Add disclaimer header
     page.drawText('! EDUCATIONAL ANALYSIS ONLY - NOT MEDICAL ADVICE', {
       x: 50,
-      y: height - 80,
+      y: headerY - 30,
       size: 12,
       color: rgb(0.8, 0, 0)
     })
 
     page.drawText(`Report Type: ${analysisType}`, {
       x: 50,
-      y: height - 110,
+      y: headerY - 60,
       size: 12,
       color: rgb(0, 0, 0)
     })
 
     page.drawText(`Analysis For: ${patientData.name}`, {
       x: 50,
-      y: height - 130,
+      y: headerY - 80,
       size: 12,
       color: rgb(0, 0, 0)
     })
 
     page.drawText(`Generated: ${analysisData.analysisDate}`, {
       x: 50,
-      y: height - 150,
+      y: headerY - 100,
       size: 12,
       color: rgb(0, 0, 0)
     })
 
     // Add main content with bold/underlined section headers
     const lines = toWinAnsiSafe(contentText).split('\n')
-    let yPosition = height - 180
+    let yPosition = headerY - 130
     const fontSize = 10
     const headerFontSize = 11
     const lineHeight = 12

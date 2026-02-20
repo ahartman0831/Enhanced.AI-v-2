@@ -11,7 +11,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await request.json()
+    let body: { compounds?: string[]; bloodwork?: string } = {}
+    try {
+      const text = await request.text()
+      body = text ? JSON.parse(text) : {}
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+    }
     const { compounds, bloodwork } = body
 
     const { data: onboarding } = await supabase
@@ -37,9 +43,10 @@ export async function POST(request: NextRequest) {
     })
 
     if (!grokResult.success) {
+      const status = grokResult._complianceBlocked ? 422 : 500
       return NextResponse.json(
         { error: grokResult.error || 'Failed to generate monitoring plan' },
-        { status: 500 }
+        { status }
       )
     }
 

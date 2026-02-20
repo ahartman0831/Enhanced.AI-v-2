@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { getSubscriptionTier, requireTier } from '@/lib/subscription-gate'
 import { callGrok } from '@/lib/grok'
 import fs from 'fs'
 import path from 'path'
@@ -86,6 +87,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const tier = await getSubscriptionTier(supabase, user.id)
+    const gate = requireTier(tier, 'elite')
+    if (!gate.allowed) {
+      return gate.response
+    }
+
     const body = await request.json().catch(() => ({}))
     const includeCompounds = body.includeCompounds !== false
     const includeSideEffects = body.includeSideEffects !== false
@@ -162,9 +169,10 @@ Format this into a professional telehealth referral package. Return valid JSON w
     })
 
     if (!grokResult.success) {
+      const status = grokResult._complianceBlocked ? 422 : 500
       return NextResponse.json(
         { error: grokResult.error || 'Failed to generate referral package' },
-        { status: 500 }
+        { status }
       )
     }
 

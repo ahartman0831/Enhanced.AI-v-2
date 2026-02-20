@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { AlertTriangle } from 'lucide-react'
 
 interface CompoundNutritionCardProps {
   compound: {
@@ -41,8 +42,11 @@ export function CompoundNutritionCard({ compound }: CompoundNutritionCardProps) 
         </div>
 
         {compound.risks.length > 0 && (
-          <div>
-            <h4 className="font-semibold text-sm mb-2 text-destructive">Potential Risks</h4>
+          <div className="rounded-md border-2 border-destructive/30 bg-destructive/5 dark:bg-destructive/10 p-3">
+            <h4 className="font-bold text-sm mb-2 text-destructive flex items-center gap-1.5">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              Potential Risks
+            </h4>
             <div className="flex flex-wrap gap-1">
               {compound.risks.map((risk, index) => (
                 <Badge key={index} variant="destructive" className="text-xs">

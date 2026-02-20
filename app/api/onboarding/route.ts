@@ -45,13 +45,18 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { age, sex, ped_experience_level, primary_goal, allow_anonymized_insights } = body
+    const { age, sex, ped_experience_level, primary_goal, risk_tolerance, allow_anonymized_insights } = body
 
-    if (!age || !sex || !ped_experience_level || !primary_goal) {
+    if (!age || !sex || !ped_experience_level || !primary_goal || !risk_tolerance) {
       return NextResponse.json(
-        { error: 'Missing required fields: age, sex, ped_experience_level, primary_goal' },
+        { error: 'Missing required fields: age, sex, ped_experience_level, primary_goal, risk_tolerance' },
         { status: 400 }
       )
+    }
+
+    const validRisk = ['low', 'medium', 'high']
+    if (!validRisk.includes(risk_tolerance)) {
+      return NextResponse.json({ error: 'Invalid risk_tolerance value' }, { status: 400 })
     }
 
     const ageNum = Number(age)
@@ -77,6 +82,7 @@ export async function POST(request: NextRequest) {
         sex,
         ped_experience_level,
         primary_goal,
+        risk_tolerance,
         updated_at: new Date().toISOString()
       }, { onConflict: 'id' })
 
@@ -88,7 +94,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Sync to profiles so age, sex, goals, experience_level are available
+    // Sync to profiles so age, sex, goals, experience_level, risk_tolerance are available
     const { error: profileError } = await supabase
       .from('profiles')
       .upsert({
@@ -97,6 +103,7 @@ export async function POST(request: NextRequest) {
         sex,
         goals: primary_goal,
         experience_level: ped_experience_level,
+        risk_tolerance,
         updated_at: new Date().toISOString()
       }, { onConflict: 'id' })
     if (profileError) {

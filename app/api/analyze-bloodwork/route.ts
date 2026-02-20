@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { getSubscriptionTier, requireTier } from '@/lib/subscription-gate'
 import { callGrok } from '@/lib/grok'
 import { validateBloodworkAnalysis } from '@/lib/bloodwork-schema'
 import { computeBloodworkContext } from '@/lib/bloodwork-context'
@@ -47,6 +48,12 @@ export async function POST(request: NextRequest) {
         { error: 'Authentication required' },
         { status: 401 }
       )
+    }
+
+    const tier = await getSubscriptionTier(supabase, user.id)
+    const gate = requireTier(tier, 'elite')
+    if (!gate.allowed) {
+      return gate.response
     }
 
     const contentType = request.headers.get('content-type') || ''
@@ -153,9 +160,10 @@ Please analyze this bloodwork data and provide the educational analysis in the s
     })
 
     if (!grokResult.success) {
+      const status = grokResult._complianceBlocked ? 422 : 500
       return NextResponse.json(
         { error: grokResult.error || 'Failed to analyze bloodwork' },
-        { status: 500 }
+        { status }
       )
     }
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { TierGate } from '@/components/TierGate'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -91,7 +92,8 @@ export default function TelehealthReferralPage() {
   const handleSaveAndGenerate = async (
     compounds: string[],
     dosages: string,
-    sideEffects: string[]
+    sideEffects: string[],
+    additionalSupplements?: string
   ) => {
     setIsGenerating(true)
     setError(null)
@@ -104,6 +106,7 @@ export default function TelehealthReferralPage() {
           compounds,
           dosages,
           sideEffects,
+          additionalSupplements,
         }),
       })
 
@@ -202,6 +205,7 @@ export default function TelehealthReferralPage() {
   }
 
   return (
+    <TierGate>
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         {/* Header */}
@@ -412,10 +416,19 @@ export default function TelehealthReferralPage() {
             {/* Referral Package Display */}
             <Card>
               <CardHeader>
-                <CardTitle>Telehealth Consultation Referral Package</CardTitle>
-                <CardDescription>
-                  Professional documentation formatted for healthcare provider review
-                </CardDescription>
+                <div className="flex flex-col items-center gap-6 pb-4">
+                  <img
+                    src="https://gzqoufimouwzhondmkid.supabase.co/storage/v1/object/public/email-assets/logo.png"
+                    alt="Enhanced.AI"
+                    className="w-full max-w-md h-auto object-contain"
+                  />
+                  <div className="text-center space-y-1">
+                    <CardTitle>Telehealth Consultation Referral Package</CardTitle>
+                    <CardDescription>
+                      Professional documentation formatted for healthcare provider review
+                    </CardDescription>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Patient Information */}
@@ -535,5 +548,6 @@ export default function TelehealthReferralPage() {
         )}
       </div>
     </div>
+    </TierGate>
   )
 }

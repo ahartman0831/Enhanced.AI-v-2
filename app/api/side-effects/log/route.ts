@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { getSubscriptionTier, requireTier } from '@/lib/subscription-gate'
 
 /**
  * POST: Save compounds + side effects to side_effect_logs WITHOUT running Grok.
@@ -18,8 +19,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const tier = await getSubscriptionTier(supabase, user.id)
+    const gate = requireTier(tier, 'pro')
+    if (!gate.allowed) {
+      return gate.response
+    }
+
     const body = await request.json()
-    const { compounds, dosages, sideEffects } = body
+    const { compounds, dosages, sideEffects, additionalSupplements } = body
 
     if (!compounds || !Array.isArray(compounds)) {
       return NextResponse.json(
@@ -41,6 +48,7 @@ export async function POST(request: NextRequest) {
         compounds,
         dosages: dosages || null,
         side_effects: sideEffects,
+        additional_supplements: additionalSupplements?.trim() || null,
         analysis_result: null,
       })
       .select()
